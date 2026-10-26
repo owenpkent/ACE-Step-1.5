@@ -1,10 +1,16 @@
 """Unit tests for the long-lived ``service_generate`` worker threads."""
 
 import threading
+import time
 import unittest
+import weakref
 from unittest.mock import patch
 
 from acestep.core.generation.handler import service_thread
+
+
+class _Payload:
+    """Weak-referenceable stand-in for a generation's inputs and outputs."""
 
 
 class RunOnServiceThreadTests(unittest.TestCase):
@@ -40,9 +46,27 @@ class RunOnServiceThreadTests(unittest.TestCase):
                 )
             )
         finally:
+            idle_before = len(service_thread._idle_workers)
             release.set()
             stuck_finished.wait(5)
+            # Let the stuck thread rejoin the pool so later tests see a settled pool.
+            deadline = time.monotonic() + 5
+            while len(service_thread._idle_workers) <= idle_before:
+                self.assertLess(time.monotonic(), deadline)
+                time.sleep(0.001)
         self.assertEqual(len(set(seen)), 2)
+
+    def test_idle_thread_does_not_keep_the_finished_call_alive(self):
+        """Once a call returns, nothing it captured stays referenced by the idle thread."""
+
+        def make_call():
+            payload = _Payload()
+            return (lambda: payload), weakref.ref(payload)
+
+        call, payload_ref = make_call()
+        self.assertTrue(service_thread.run_on_service_thread(call, timeout=5))
+        del call
+        self.assertIsNone(payload_ref())
 
     def test_exception_is_logged_and_thread_is_reused(self):
         """An exception escaping ``fn`` is logged and the same thread serves the next call."""

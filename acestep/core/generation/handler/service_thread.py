@@ -39,6 +39,8 @@ def _serve(jobs: "queue.SimpleQueue[_Job]") -> None:
         fn, done = jobs.get()
         try:
             _run_logged(fn)
+            # Don't keep the call's closure (inputs, outputs, exception frames) alive while idle.
+            fn = None
             # Rejoin the idle pool before signalling, so the caller's next call reuses this thread.
             with _idle_lock:
                 _idle_workers.append(jobs)

@@ -68,7 +68,7 @@ class GenerateMusicExecuteMixin:
         progress_thread = None
 
         # --- Timeout-wrapped service_generate ---
-        # Run the actual CUDA work in a child thread so we can join() with a
+        # Run the actual CUDA work on a service thread and wait with a
         # deadline.  If it exceeds the timeout the calling thread unblocks and
         # raises TimeoutError, which propagates to generate_music()'s
         # try/except and becomes a clean error payload for the UI.
