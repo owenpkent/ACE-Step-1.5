@@ -18,9 +18,8 @@ class GetRssMbWindowsTests(unittest.TestCase):
         """Other ``ctypes.windll`` callers keep the default ``GetCurrentProcess`` return type."""
         import ctypes
 
-        before = ctypes.windll.kernel32.GetCurrentProcess.restype
         InitServiceMemoryBasicMixin._get_rss_mb()
-        self.assertIs(ctypes.windll.kernel32.GetCurrentProcess.restype, before)
+        self.assertIs(ctypes.windll.kernel32.GetCurrentProcess.restype, ctypes.c_int)
 
 
 if __name__ == "__main__":
