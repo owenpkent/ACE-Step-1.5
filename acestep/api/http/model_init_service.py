@@ -117,6 +117,7 @@ def initialize_models_for_request(
         compile_model=compile_model,
         offload_to_cpu=offload_to_cpu,
         offload_dit_to_cpu=offload_dit_to_cpu,
+        require_lm=init_llm,
     )
     if not ok:
         setattr(app_state, error_attr, status_msg)

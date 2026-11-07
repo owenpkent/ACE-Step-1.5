@@ -163,6 +163,7 @@ def _download_from_huggingface_internal(
     repo_id: str,
     local_dir: Path,
     token: Optional[str] = None,
+    allow_patterns: Optional[List[str]] = None,
 ) -> None:
     """
     Internal function to download from HuggingFace Hub.
@@ -171,6 +172,7 @@ def _download_from_huggingface_internal(
         repo_id: HuggingFace repository ID (e.g., "ACE-Step/Ace-Step1.5")
         local_dir: Local directory to save the model
         token: HuggingFace token for private repos (optional)
+        allow_patterns: Optional glob patterns restricting which files are fetched
 
     Raises:
         Exception: If download fails
@@ -182,6 +184,7 @@ def _download_from_huggingface_internal(
     snapshot_download(
         repo_id=repo_id,
         local_dir=str(local_dir),
+        allow_patterns=allow_patterns,
         local_dir_use_symlinks="auto",
         token=token,
     )
@@ -190,6 +193,7 @@ def _download_from_huggingface_internal(
 def _download_from_modelscope_internal(
     repo_id: str,
     local_dir: Path,
+    allow_patterns: Optional[List[str]] = None,
 ) -> None:
     """
     Internal function to download from ModelScope.
@@ -197,6 +201,7 @@ def _download_from_modelscope_internal(
     Args:
         repo_id: ModelScope repository ID (e.g., "ACE-Step/Ace-Step1.5")
         local_dir: Local directory to save the model
+        allow_patterns: Optional glob patterns restricting which files are fetched
 
     Raises:
         Exception: If download fails
@@ -208,6 +213,7 @@ def _download_from_modelscope_internal(
     snapshot_download(
         model_id=repo_id,
         local_dir=str(local_dir),
+        allow_patterns=allow_patterns,
     )
 
 
@@ -216,6 +222,7 @@ def _smart_download(
     local_dir: Path,
     token: Optional[str] = None,
     prefer_source: Optional[str] = None,
+    allow_patterns: Optional[List[str]] = None,
 ) -> Tuple[bool, str]:
     """
     Smart download with automatic fallback between HuggingFace and ModelScope.
@@ -228,6 +235,7 @@ def _smart_download(
         local_dir: Local directory to save the model
         token: HuggingFace token for private repos (optional)
         prefer_source: Preferred download source ("huggingface", "modelscope", or None for auto-detect)
+        allow_patterns: Optional glob patterns restricting which files are fetched
 
     Returns:
         Tuple of (success, message)
@@ -251,13 +259,13 @@ def _smart_download(
     if use_huggingface_first:
         logger.info("[Model Download] Using HuggingFace Hub...")
         try:
-            _download_from_huggingface_internal(repo_id, local_dir, token)
+            _download_from_huggingface_internal(repo_id, local_dir, token, allow_patterns)
             return True, f"Successfully downloaded from HuggingFace: {repo_id}"
         except Exception as e:
             logger.warning(f"[Model Download] HuggingFace download failed: {e}")
             logger.info("[Model Download] Falling back to ModelScope...")
             try:
-                _download_from_modelscope_internal(repo_id, local_dir)
+                _download_from_modelscope_internal(repo_id, local_dir, allow_patterns)
                 return True, f"Successfully downloaded from ModelScope: {repo_id}"
             except Exception as e2:
                 error_msg = f"Both HuggingFace and ModelScope downloads failed. HF: {e}, MS: {e2}"
@@ -266,13 +274,13 @@ def _smart_download(
     else:
         logger.info("[Model Download] Using ModelScope...")
         try:
-            _download_from_modelscope_internal(repo_id, local_dir)
+            _download_from_modelscope_internal(repo_id, local_dir, allow_patterns)
             return True, f"Successfully downloaded from ModelScope: {repo_id}"
         except Exception as e:
             logger.warning(f"[Model Download] ModelScope download failed: {e}")
             logger.info("[Model Download] Falling back to HuggingFace Hub...")
             try:
-                _download_from_huggingface_internal(repo_id, local_dir, token)
+                _download_from_huggingface_internal(repo_id, local_dir, token, allow_patterns)
                 return True, f"Successfully downloaded from HuggingFace: {repo_id}"
             except Exception as e2:
                 error_msg = f"Both ModelScope and HuggingFace downloads failed. MS: {e}, HF: {e2}"
@@ -488,6 +496,37 @@ def download_main_model(
                 if synced:
                     logger.info(f"[Model Download] Synced code files for {component}: {synced}")
     return success, msg
+
+
+def download_main_component(
+    component: str,
+    checkpoints_dir: Path,
+    token: Optional[str] = None,
+    prefer_source: Optional[str] = None,
+) -> Tuple[bool, str]:
+    """Download one component folder of the main model repo (e.g. only the LM).
+
+    Args:
+        component: Entry of MAIN_MODEL_COMPONENTS to fetch.
+        checkpoints_dir: Destination checkpoints directory.
+        token: HuggingFace token (optional).
+        prefer_source: "huggingface", "modelscope", or None for auto-detect.
+
+    Returns:
+        Tuple of (success, message).
+    """
+    if component not in MAIN_MODEL_COMPONENTS:
+        return False, f"Unknown main model component: {component}"
+    success, msg = _smart_download(
+        MAIN_MODEL_REPO,
+        Path(checkpoints_dir),
+        token=token,
+        prefer_source=prefer_source,
+        allow_patterns=[f"{component}/*"],
+    )
+    if success and component in _CHECKPOINT_TO_VARIANT:
+        _sync_model_code_files(component, Path(checkpoints_dir))
+    return success, f"{msg} ({component})"
 
 
 def download_submodel(

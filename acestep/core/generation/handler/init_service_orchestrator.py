@@ -58,11 +58,13 @@ class InitServiceOrchestratorMixin:
         prefer_source: Optional[str] = None,
         use_mlx_dit: bool = True,
         vae_checkpoint: Optional[str] = None,
+        require_lm: bool = True,
     ) -> Tuple[str, bool]:
         """Initialize model artifacts and runtime backends for generation.
 
         This method intentionally supports repeated calls to reinitialize models
         with new settings; it does not short-circuit when components are already loaded.
+        ``require_lm=False`` skips the LM checkpoint check and download.
         """
         try:
             if config_path is None:
@@ -140,6 +142,7 @@ class InitServiceOrchestratorMixin:
                 config_path=config_path,
                 prefer_source=prefer_source,
                 vae_variant=resolved_vae_variant,
+                require_lm=require_lm,
             )
             if precheck_failure is not None:
                 self.model = None
