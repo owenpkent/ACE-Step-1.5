@@ -86,6 +86,9 @@ def run_api_server_main(
         os.environ["ACESTEP_NO_INIT"] = "true"
         print("[API Server] --no-init: Models will NOT be loaded at startup (lazy load on first request)")
 
+    # Let in-process helpers (e.g. TensorBoard) follow the configured bind host.
+    os.environ["ACESTEP_API_HOST"] = str(args.host)
+
     # IMPORTANT: in-memory queue/store -> workers MUST be 1
     uvicorn.run(
         "acestep.api_server:app",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import subprocess
@@ -39,6 +40,27 @@ def stop_tensorboard(app: Any) -> None:
         pass
 
 
+def _tensorboard_url_host(bind_host: str) -> str:
+    """Return the host to embed in the TensorBoard URL for a bind address.
+
+    The canonical loopbacks (127.0.0.1, ::1) and unspecified addresses map to
+    "localhost". Other IPv6 literals are bracketed. Everything else, including
+    alternate 127/8 loopbacks such as 127.0.0.2, passes through unchanged so the
+    advertised URL reaches the address TensorBoard actually listens on.
+    """
+
+    try:
+        addr = ipaddress.ip_address(bind_host)
+    except ValueError:
+        return bind_host
+    canonical_loopback = addr in (ipaddress.ip_address("127.0.0.1"), ipaddress.ip_address("::1"))
+    if canonical_loopback or addr.is_unspecified:
+        return "localhost"
+    if addr.version == 6:
+        return f"[{addr.compressed}]"
+    return bind_host
+
+
 def start_tensorboard(
     app: Any,
     logdir: str,
@@ -49,6 +71,8 @@ def start_tensorboard(
     try:
         tensorboard_port = int(os.getenv("TENSORBOARD_PORT", "6006"))
         stop_tensorboard_fn(app)
+        # Follow the API server bind host (loopback unless explicitly exposed).
+        bind_host = (os.environ.get("ACESTEP_API_HOST") or "").strip() or "127.0.0.1"
 
         if sys.prefix != sys.base_prefix:
             tensorboard_cmd = os.path.join(sys.prefix, "Scripts", "tensorboard.exe")
@@ -66,12 +90,13 @@ def start_tensorboard(
                 logdir,
                 "--port",
                 str(tensorboard_port),
-                "--bind_all",
+                "--host",
+                bind_host,
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        return f"http://localhost:{tensorboard_port}"
+        return f"http://{_tensorboard_url_host(bind_host)}:{tensorboard_port}"
     except Exception:
         return None
 

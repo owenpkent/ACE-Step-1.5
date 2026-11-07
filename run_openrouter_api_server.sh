@@ -6,7 +6,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONDA_ACTIVATE="${CONDA_ACTIVATE:-/root/data/repo/gongjunmin/miniconda3/bin/activate}"
 CONDA_ENV_NAME="${ACESTEP_CONDA_ENV:-acestep_v15_train}"
 
-HOST="${ACESTEP_API_HOST:-0.0.0.0}"
+# Loopback by default. Set ACESTEP_API_HOST=0.0.0.0 to expose on the LAN.
+HOST="${ACESTEP_API_HOST:-127.0.0.1}"
 PORT="${ACESTEP_API_PORT:-8001}"
 LOG_LEVEL="${ACESTEP_API_LOG_LEVEL:-debug}"
 
@@ -20,7 +21,7 @@ set -u
 
 # NOTE: api_server 使用内存队列/任务存储，要求 workers=1。
 nohup python -m uvicorn openrouter.openrouter_api_server:app \
-	--host "0.0.0.0" \
+	--host "$HOST" \
 	--port "8002" \
 	--workers 1 \
 	--log-level "$LOG_LEVEL" > server.log 2>&1 &
