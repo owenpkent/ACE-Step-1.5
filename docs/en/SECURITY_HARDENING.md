@@ -94,13 +94,14 @@ The container runs as root and binds `0.0.0.0` inside the container. Recommended
 ```bash
 docker run --gpus all \
   -p 127.0.0.1:8001:8001 \
+  -e ACESTEP_MODE=api \
   -e ACESTEP_API_KEY="<your key>" \
   -e ACESTEP_ALLOWED_PATHS=/data \
   -v /path/to/data:/data \
   ace-step:latest
 ```
 
-Publishing to `127.0.0.1` keeps the port off the LAN while the container keeps its internal bind. Mount only the directories the training routes need.
+`ACESTEP_MODE=api` selects the REST server (the image defaults to the Gradio UI on port 7860). Publishing to `127.0.0.1` keeps the port off the LAN while the container keeps its internal bind. Mount only the directories the training routes need.
 
 ---
 
@@ -132,4 +133,4 @@ Full variable list: [API Reference, section 13](./API.md#13-environment-variable
 
 ## Reporting a vulnerability
 
-See [SECURITY.md](../../SECURITY.md). Do not open a public issue for a security problem.
+See [SECURITY.md](https://github.com/ace-step/ACE-Step-1.5/blob/main/SECURITY.md). Do not open a public issue for a security problem.
