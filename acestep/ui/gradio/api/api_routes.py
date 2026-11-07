@@ -15,7 +15,6 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from loguru import logger
 
 from acestep.api.http.auth import (
     MISSING_HEADER_DETAIL,
