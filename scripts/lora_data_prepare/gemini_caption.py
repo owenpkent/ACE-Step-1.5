@@ -13,6 +13,10 @@ from pathlib import Path
 
 import requests
 
+# Timeouts (seconds) for Gemini file API calls (Bandit B113).
+_REQUEST_TIMEOUT_SEC = 120
+_UPLOAD_TIMEOUT_SEC = 300
+
 prompt = """Analyze the input audio to generate detailed caption and lyrics. 
 lyrics need contain structured tags for chorus, verse, bridge, etc.
 **Output Format:**
@@ -123,7 +127,10 @@ class GeminiService:
 
             upload_endpoint = self._get_endpoint("upload")
             response = requests.post(
-                upload_endpoint, headers=init_headers, json=init_data
+                upload_endpoint,
+                headers=init_headers,
+                json=init_data,
+                timeout=_REQUEST_TIMEOUT_SEC,
             )
 
             if response.status_code != 200:
@@ -146,7 +153,12 @@ class GeminiService:
                 "X-Goog-Upload-Command": "upload, finalize",
             }
 
-            response = requests.post(upload_url, headers=upload_headers, data=file_data)
+            response = requests.post(
+                upload_url,
+                headers=upload_headers,
+                data=file_data,
+                timeout=_UPLOAD_TIMEOUT_SEC,
+            )
 
             if response.status_code == 200:
                 file_info = response.json()
@@ -168,7 +180,9 @@ class GeminiService:
         try:
             files_endpoint = self._get_endpoint("files")
             url = f"{files_endpoint}/{file_name}"
-            response = requests.get(url, headers=self._get_headers())
+            response = requests.get(
+                url, headers=self._get_headers(), timeout=_REQUEST_TIMEOUT_SEC
+            )
 
             if response.status_code == 200:
                 return response.json()
@@ -181,7 +195,9 @@ class GeminiService:
         try:
             files_endpoint = self._get_endpoint("files")
             url = f"{files_endpoint}/{file_name}"
-            response = requests.delete(url, headers=self._get_headers())
+            response = requests.delete(
+                url, headers=self._get_headers(), timeout=_REQUEST_TIMEOUT_SEC
+            )
             return response.status_code == 204
         except Exception as e:
             print(f"Error deleting file: {e}")
