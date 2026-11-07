@@ -31,6 +31,8 @@ Authorization: Bearer <your-api-key>
 
 No authentication is required when no API key is configured.
 
+When these routes are served by the main API server (`python -m acestep.api_server`) rather than the standalone OpenRouter server, `ACESTEP_API_KEY` is the key that applies. See the [Security Hardening Guide](./SECURITY_HARDENING.md#2-require-an-api-key).
+
 ---
 
 ## Endpoints

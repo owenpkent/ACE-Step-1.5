@@ -19,6 +19,10 @@ Please include:
 
 We will acknowledge receipt and work to assess the issue as quickly as possible.
 
+## Deployment Hardening
+
+If you run the REST API, the OpenRouter-compatible endpoints or the Gradio UI where other machines can reach them, follow the [Security Hardening Guide](./docs/en/SECURITY_HARDENING.md): bind to loopback or a reverse proxy, set `ACESTEP_API_KEY`, confine training paths with `ACESTEP_ALLOWED_PATHS`, and load only trusted model weights.
+
 ## Bug Bounties
 
 At this time, this project does **not** operate a formal bug bounty program.  

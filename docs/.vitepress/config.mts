@@ -172,6 +172,7 @@ function sidebarEN() {
           { text: 'LoRA Training', link: '/en/LoRA_Training_Tutorial' },
           { text: 'GPU Compatibility', link: '/en/GPU_COMPATIBILITY' },
           { text: 'GPU Troubleshooting', link: '/en/GPU_TROUBLESHOOTING' },
+          { text: 'Security Hardening', link: '/en/SECURITY_HARDENING' },
           { text: 'Benchmark', link: '/en/BENCHMARK' },
           { text: 'ROCm on Linux', link: '/en/ACE-Step1.5-Rocm-Manual-Linux' },
         ],
