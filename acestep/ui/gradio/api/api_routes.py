@@ -3,6 +3,7 @@ Gradio API Routes Module
 Add API endpoints compatible with api_server.py and CustomAceStep to Gradio application
 """
 import atexit
+import hmac
 import json
 import os
 import random
@@ -61,7 +62,7 @@ def verify_token_from_request(body: dict, authorization: Optional[str] = None) -
     # Try ai_token from body first
     ai_token = body.get("ai_token") if body else None
     if ai_token:
-        if ai_token == key:
+        if hmac.compare_digest(str(ai_token).encode("utf-8"), key.encode("utf-8")):
             return ai_token
         raise HTTPException(status_code=401, detail="Invalid ai_token")
 
@@ -71,7 +72,7 @@ def verify_token_from_request(body: dict, authorization: Optional[str] = None) -
             token = authorization[7:]
         else:
             token = authorization
-        if token == key:
+        if hmac.compare_digest(token.encode("utf-8"), key.encode("utf-8")):
             return token
         raise HTTPException(status_code=401, detail="Invalid API key")
 
@@ -94,7 +95,7 @@ async def verify_api_key(authorization: Optional[str] = Header(None)):
     else:
         token = authorization
 
-    if token != key:
+    if not hmac.compare_digest(token.encode("utf-8"), key.encode("utf-8")):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 

@@ -22,7 +22,7 @@ import tempfile
 import time
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from loguru import logger
 
@@ -572,17 +572,20 @@ async def _openrouter_stream_generator(
 # Router Factory
 # =============================================================================
 
-def create_openrouter_router(app_state_getter) -> APIRouter:
+def create_openrouter_router(app_state_getter, verify_api_key=None) -> APIRouter:
     """
     Create OpenRouter-compatible API router.
 
     Args:
         app_state_getter: Callable that returns the FastAPI app.state object
+        verify_api_key: Optional FastAPI dependency enforcing the API key on
+            every route of this router. ``None`` leaves the routes open.
 
     Returns:
         APIRouter with OpenRouter-compatible endpoints
     """
-    router = APIRouter(tags=["OpenRouter Compatible"])
+    dependencies = [Depends(verify_api_key)] if verify_api_key is not None else []
+    router = APIRouter(tags=["OpenRouter Compatible"], dependencies=dependencies)
 
     def _get_model_name_from_path(config_path: str) -> str:
         """Extract model name from config path."""

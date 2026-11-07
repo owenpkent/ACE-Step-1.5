@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import hmac
 from typing import Any, Optional
 
 from fastapi import Header, HTTPException
 
 _api_key: Optional[str] = None
+
+
+def _keys_match(candidate: str, expected: str) -> bool:
+    """Constant-time comparison of two API keys."""
+
+    return hmac.compare_digest(candidate.encode("utf-8"), expected.encode("utf-8"))
 
 
 def set_api_key(key: Optional[str]) -> None:
@@ -41,13 +48,13 @@ def verify_token_from_request(
 
     ai_token = body.get("ai_token") if body else None
     if ai_token:
-        if ai_token == _api_key:
+        if _keys_match(str(ai_token), _api_key):
             return ai_token
         raise HTTPException(status_code=401, detail="Invalid ai_token")
 
     if authorization:
         token = authorization[7:] if authorization.startswith("Bearer ") else authorization
-        if token == _api_key:
+        if _keys_match(token, _api_key):
             return token
         raise HTTPException(status_code=401, detail="Invalid API key")
 
@@ -71,5 +78,5 @@ async def verify_api_key(authorization: Optional[str] = Header(None)) -> None:
         raise HTTPException(status_code=401, detail="Missing Authorization header")
 
     token = authorization[7:] if authorization.startswith("Bearer ") else authorization
-    if token != _api_key:
+    if not _keys_match(token, _api_key):
         raise HTTPException(status_code=401, detail="Invalid API key")
