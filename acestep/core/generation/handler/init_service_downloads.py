@@ -5,13 +5,14 @@ from typing import Optional, Tuple
 
 from loguru import logger
 
+from acestep.core.generation.handler.init_service_component_check import (
+    ensure_main_components,
+)
 from acestep.model_downloader import (
     DEFAULT_VAE_VARIANT,
-    check_main_model_exists,
     check_model_exists,
     check_vae_exists,
     ensure_dit_model,
-    ensure_main_model,
     ensure_vae_model,
 )
 
@@ -26,14 +27,15 @@ class InitServiceDownloadsMixin:
         config_path: str,
         prefer_source: Optional[str],
         vae_variant: Optional[str] = None,
+        require_lm: bool = True,
     ) -> Optional[Tuple[str, bool]]:
-        """Ensure required checkpoint assets exist locally, downloading when missing."""
-        if not check_main_model_exists(checkpoint_path):
-            logger.info("[initialize_service] Main model not found, starting auto-download...")
-            success, msg = ensure_main_model(checkpoint_path, prefer_source=prefer_source)
-            if not success:
-                return f"ERROR: Failed to download main model: {msg}", False
-            logger.info(f"[initialize_service] {msg}")
+        """Ensure required checkpoint assets exist locally, downloading when missing.
+
+        When ``require_lm`` is False the LM component is neither checked nor downloaded.
+        """
+        error = ensure_main_components(checkpoint_path, prefer_source, require_lm)
+        if error is not None:
+            return error
 
         if config_path == "":
             logger.warning(

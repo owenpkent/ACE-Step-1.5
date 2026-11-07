@@ -13,6 +13,14 @@ from acestep.gpu_config import (
 from acestep.api.startup_llm_init import initialize_llm_at_startup
 
 
+def _resolve_init_llm(gpu_config: Any) -> bool:
+    """Resolve whether the LLM will be initialized (GPU default plus ACESTEP_INIT_LLM)."""
+    init_llm_env = os.getenv("ACESTEP_INIT_LLM", "").strip().lower()
+    if not init_llm_env or init_llm_env == "auto":
+        return bool(gpu_config.init_lm_default)
+    return init_llm_env in {"1", "true", "yes", "y", "on"}
+
+
 def do_model_initialization(
     *,
     app: Any,
@@ -61,6 +69,8 @@ def do_model_initialization(
     offload_dit_to_cpu = env_bool("ACESTEP_OFFLOAD_DIT_TO_CPU", False)
     compile_model = env_bool("ACESTEP_COMPILE_MODEL", False)
 
+    require_lm = _resolve_init_llm(gpu_config)
+
     checkpoint_dir = os.path.join(project_root, "checkpoints")
     os.makedirs(checkpoint_dir, exist_ok=True)
 
@@ -85,6 +95,7 @@ def do_model_initialization(
         compile_model=compile_model,
         offload_to_cpu=offload_to_cpu,
         offload_dit_to_cpu=offload_dit_to_cpu,
+        require_lm=require_lm,
     )
     if not ok:
         app.state._init_error = status_msg
@@ -103,6 +114,7 @@ def do_model_initialization(
         "compile_model": compile_model,
         "offload_to_cpu": offload_to_cpu,
         "offload_dit_to_cpu": offload_dit_to_cpu,
+        "require_lm": require_lm,
     }
     app.state._checkpoint_dir = checkpoint_dir
     app.state._ensure_model_downloaded = ensure_model_downloaded
@@ -125,6 +137,7 @@ def do_model_initialization(
                 compile_model=compile_model,
                 offload_to_cpu=offload_to_cpu,
                 offload_dit_to_cpu=offload_dit_to_cpu,
+                require_lm=require_lm,
             )
             app.state._initialized2 = ok2
             if ok2:
@@ -152,6 +165,7 @@ def do_model_initialization(
                 compile_model=compile_model,
                 offload_to_cpu=offload_to_cpu,
                 offload_dit_to_cpu=offload_dit_to_cpu,
+                require_lm=require_lm,
             )
             app.state._initialized3 = ok3
             if ok3:

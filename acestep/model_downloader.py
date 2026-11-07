@@ -490,6 +490,56 @@ def download_main_model(
     return success, msg
 
 
+def download_main_component(
+    component: str,
+    checkpoints_dir: Path,
+    token: Optional[str] = None,
+    prefer_source: Optional[str] = None,
+) -> Tuple[bool, str]:
+    """Download one component folder of the main model repo (e.g. only the LM).
+
+    Args:
+        component: Entry of MAIN_MODEL_COMPONENTS to fetch.
+        checkpoints_dir: Destination checkpoints directory.
+        token: HuggingFace token (optional).
+        prefer_source: "huggingface", "modelscope", or None to try HuggingFace first.
+
+    Returns:
+        Tuple of (success, message).
+    """
+    if component not in MAIN_MODEL_COMPONENTS:
+        return False, f"Unknown main model component: {component}"
+    checkpoints_dir.mkdir(parents=True, exist_ok=True)
+    patterns = [f"{component}/*"]
+
+    def _hf() -> None:
+        from huggingface_hub import snapshot_download
+
+        snapshot_download(repo_id=MAIN_MODEL_REPO, local_dir=str(checkpoints_dir),
+                          allow_patterns=patterns, token=token)
+
+    def _ms() -> None:
+        from modelscope import snapshot_download
+
+        snapshot_download(model_id=MAIN_MODEL_REPO, local_dir=str(checkpoints_dir),
+                          allow_patterns=patterns)
+
+    order = [("ModelScope", _ms), ("HuggingFace", _hf)]
+    if prefer_source != "modelscope":
+        order.reverse()
+    errors = []
+    for name, fetch in order:
+        try:
+            fetch()
+            if component in _CHECKPOINT_TO_VARIANT:
+                _sync_model_code_files(component, checkpoints_dir)
+            return True, f"Successfully downloaded {component} from {name}"
+        except Exception as exc:  # network/library errors vary by backend
+            logger.warning(f"[Model Download] {name} download of {component} failed: {exc}")
+            errors.append(f"{name}: {exc}")
+    return False, f"All downloads failed for {component}. " + "; ".join(errors)
+
+
 def download_submodel(
     model_name: str,
     checkpoints_dir: Optional[Path] = None,
