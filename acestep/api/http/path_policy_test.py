@@ -234,5 +234,30 @@ class PathPolicyTests(unittest.TestCase):
         self.assertEqual(self.root / "data", got)
 
 
+    def test_outside_link_into_root_rejected_for_destructive_use(self) -> None:
+        """A link outside the roots that points inside is refused with reject_link, accepted otherwise."""
+
+        target = self.root / "target"
+        target.mkdir()
+        alias = self.outside / "alias"
+        self._make_link(alias, target)
+        with self.assertRaises(HTTPException) as ctx:
+            path_policy.resolve_allowed(str(alias), must_exist=False, kind="dir", reject_link=True)
+        self.assertEqual(path_policy._REJECTED, ctx.exception.detail)
+        followed = path_policy.resolve_allowed(str(alias), must_exist=False, kind="dir")
+        self.assertEqual(target, followed)
+
+    @unittest.skipUnless(os.name == "nt", "case-insensitive paths are Windows-only")
+    def test_case_variant_under_not_yet_created_root(self) -> None:
+        """A differently cased path under an allowed root that does not exist yet is accepted."""
+
+        new_root = self.base / "NewRoot"
+        with mock.patch.dict(os.environ, {"ACESTEP_ALLOWED_PATHS": str(new_root)}):
+            spelled = os.path.join(str(self.base).lower(), "newroot", "Run1")
+            got = path_policy.resolve_allowed(spelled, must_exist=False, kind="dir", reject_link=True)
+        self.assertEqual(new_root / "Run1", got)
+        self.assertEqual(str(new_root / "Run1"), str(got))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -210,6 +210,31 @@ class TrainingApiServiceHttpTests(unittest.TestCase):
             cp.assert_not_called()
             self.assertTrue((target / "keep.txt").exists())
 
+    def test_export_rejects_outside_link_pointing_inside(self):
+        """An export_path outside the roots that is a link to an inside directory must 400."""
+
+        client, _calls, _app = self._build_client()
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as elsewhere:
+            root = self._export_fixture(tmp)
+            target = root / "target"
+            target.mkdir()
+            (target / "keep.txt").write_text("k", encoding="utf-8")
+            alias = Path(elsewhere).resolve() / "export-alias"
+            if os.name == "nt":
+                import _winapi
+
+                _winapi.CreateJunction(str(target), str(alias))
+            else:
+                try:
+                    os.symlink(target, alias, target_is_directory=True)
+                except (OSError, NotImplementedError):
+                    self.skipTest("symlinks not permitted on this platform")
+            response, rm, cp = self._post_export(client, root, alias)
+            self.assertEqual(400, response.status_code)
+            rm.assert_not_called()
+            cp.assert_not_called()
+            self.assertTrue((target / "keep.txt").exists())
+
     def test_export_to_plain_new_dir_succeeds(self):
         """POST /v1/training/export copies to a plain non-existent directory."""
 

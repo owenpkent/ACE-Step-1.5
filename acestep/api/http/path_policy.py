@@ -12,7 +12,6 @@ canonicalised with ``os.path.realpath`` and only reaches a filesystem call after
 from __future__ import annotations
 
 import os
-import stat
 from pathlib import Path
 from typing import List, Literal, Optional
 
@@ -55,26 +54,43 @@ def _canonical(raw: str) -> Optional[str]:
         return None
 
 
-def _lexical(raw: str) -> str:
-    """Normalise ``raw`` without following links, case-folded for prefix comparison."""
-    return os.path.normpath(os.path.normcase(os.path.abspath(os.path.expanduser(raw))))
+def _lexically_inside(raw: str, prefixes: List[str]) -> bool:
+    """Return True if ``raw``, normalised without following links, spells a path under a root."""
+    lexical = os.path.normcase(os.path.normpath(os.path.abspath(os.path.expanduser(raw))))
+    return any(
+        lexical.startswith(os.path.normcase(prefix).rstrip(os.sep) + os.sep) for prefix in prefixes
+    )
 
 
-def _is_link(path: Path) -> bool:
-    """Return True if the final component of ``path`` is a symlink or Windows junction.
+def _final_component_is_link(raw: str, canonical: str) -> bool:
+    """Return True if resolving the last component of ``raw`` changed the path.
 
-    The path is not resolved. A missing or unreadable path is not a link.
+    A symlink or Windows junction as the final component makes the canonical path
+    differ from the canonical parent joined with the typed name. Nothing is
+    ``lstat``-ed; only normalisation is used.
     """
-
-    try:
-        st = os.lstat(path)
-    except (OSError, ValueError):
+    lexical = os.path.normpath(os.path.abspath(os.path.expanduser(raw)))
+    parent, name = os.path.split(lexical)
+    if not name:
         return False
-    if stat.S_ISLNK(st.st_mode):
+    try:
+        expected = os.path.join(os.path.realpath(parent), name)
+    except (OSError, RuntimeError, ValueError):
         return True
-    mount_point = getattr(stat, "IO_REPARSE_TAG_MOUNT_POINT", -1)
-    return getattr(st, "st_reparse_tag", 0) == mount_point
+    return os.path.normcase(expected) != os.path.normcase(os.path.abspath(canonical))
 
+
+def _respell_root(canonical: str, prefix_sep: str) -> str:
+    """Return ``canonical`` with its leading root spelled as configured when they match.
+
+    On case-insensitive filesystems a root that does not exist yet cannot be
+    canonicalised, so the request may spell it differently. The match uses the
+    platform's ``os.path.normcase``; when it fails ``canonical`` is returned unchanged.
+    """
+    head = canonical[: len(prefix_sep)]
+    if os.path.normcase(head) == os.path.normcase(prefix_sep):
+        return prefix_sep + canonical[len(prefix_sep):]
+    return canonical
 
 def _has_reserved_name(path: str) -> bool:
     """Return True on Windows if any component of ``path`` names a reserved device."""
@@ -111,22 +127,6 @@ def allowed_roots() -> List[Path]:
         if resolved is not None and resolved not in roots:
             roots.append(resolved)
     return roots
-
-
-def _reject_link_before_resolution(raw: str, prefixes: List[str]) -> None:
-    """Raise if ``raw`` lexically sits under an allowed root and ends in a link.
-
-    This runs before symlinks are followed. A path outside every root is left for
-    the generic containment rejection, so the link check reveals nothing about it.
-    """
-
-    lexical = _lexical(raw)
-    for prefix in prefixes:
-        base = os.path.normcase(prefix).rstrip(os.sep) + os.sep
-        if lexical.startswith(base):
-            if _is_link(Path(lexical)):
-                raise HTTPException(status_code=400, detail=_LINK_REJECTED)
-            return
 
 
 def _check_kind(resolved: Path, must_exist: bool, kind: str) -> Path:
@@ -173,18 +173,23 @@ def resolve_allowed(
         raise HTTPException(status_code=400, detail="A valid path is required")
 
     prefixes = [str(root) for root in allowed_roots()]
-    if reject_link:
-        _reject_link_before_resolution(raw, prefixes)
-
     canonical = _canonical(raw)
     if canonical is None:
         raise HTTPException(status_code=400, detail="Invalid path")
-    if not allow_root and canonical in prefixes:
+    folded = os.path.normcase(canonical)
+    folded_roots = {os.path.normcase(prefix): prefix for prefix in prefixes}
+    if not allow_root and folded in folded_roots:
         raise HTTPException(status_code=400, detail=_REJECTED)
+    if folded in folded_roots:
+        return _check_kind(Path(folded_roots[folded]), must_exist, kind)
 
     for prefix in prefixes:
-        if canonical.startswith(prefix.rstrip(os.sep) + os.sep):
-            return _check_kind(Path(canonical), must_exist, kind)
-        if canonical == prefix:
-            return _check_kind(Path(prefix), must_exist, kind)
+        prefix_sep = prefix.rstrip(os.sep) + os.sep
+        spelled = _respell_root(canonical, prefix_sep)
+        if spelled.startswith(prefix_sep):
+            if reject_link and _final_component_is_link(raw, canonical):
+                inside = _lexically_inside(raw, prefixes)
+                detail = _LINK_REJECTED if inside else _REJECTED
+                raise HTTPException(status_code=400, detail=detail)
+            return _check_kind(Path(spelled), must_exist, kind)
     raise HTTPException(status_code=400, detail=_REJECTED)
