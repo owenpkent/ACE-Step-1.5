@@ -71,12 +71,23 @@ _REMEDIES = {
 }
 
 
+_BUILT_IN_ORIGINS = ("startup working directory", "project directory")
+
+
 def _remedy(origins: List[str]) -> str:
-    """Return the remedy sentence(s) for the given origins."""
+    """Return the remedy sentence(s) for the given origins.
+
+    The caveat that ``ACESTEP_ALLOWED_PATHS`` cannot remove the root applies only to
+    the built-in roots; a root supplied by an environment setting goes away when that
+    setting is narrowed.
+    """
     parts = [_REMEDIES[origin] for origin in origins if origin in _REMEDIES]
     if not parts:
         parts.append("Narrow the setting that produced it.")
-    parts.append(f"{ALLOWED_PATHS_ENV} only adds roots and cannot remove this one.")
+    if any(origin in _BUILT_IN_ORIGINS for origin in origins):
+        parts.append(
+            f"{ALLOWED_PATHS_ENV} adds to these built-in roots and cannot remove this one."
+        )
     return " ".join(parts)
 
 

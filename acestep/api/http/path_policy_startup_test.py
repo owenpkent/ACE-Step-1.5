@@ -73,8 +73,8 @@ class LogAllowedRootsTests(unittest.TestCase):
         args = mock_logger.warning.call_args.args
         self.assertEqual("startup working directory", args[2])
         self.assertIn("Restart the server from the project directory", args[3])
-        self.assertIn("only adds roots and cannot remove this one", args[3])
-        self.assertNotIn("instead", args[3].split("only adds roots")[0])
+        self.assertIn("cannot remove this one", args[3])
+        self.assertNotIn("instead", args[3].split("cannot remove")[0])
 
     def test_origin_detection_for_env_roots(self) -> None:
         """Roots that come from ACESTEP_TMPDIR or ACESTEP_ALLOWED_PATHS are attributed to them."""
@@ -92,6 +92,18 @@ class LogAllowedRootsTests(unittest.TestCase):
                     ["startup working directory", "project directory"],
                     path_policy_startup.root_origins(base / "proj"),
                 )
+
+    def test_env_only_broad_root_gets_no_cannot_remove_caveat(self) -> None:
+        """A broad root supplied only by ACESTEP_ALLOWED_PATHS can be removed by narrowing it."""
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp).resolve() / "home"
+            (home / "project").mkdir(parents=True)
+            with patch.object(path_policy_startup, "allowed_roots", return_value=[home]),                     patch.object(path_policy_startup, "_home_directory", return_value=home),                     patch.object(path_policy_startup.path_policy, "_STARTUP_CWD", home / "project"),                     patch.object(path_policy_startup.path_policy, "_PROJECT_ROOT", home / "project"),                     patch.dict(os.environ, {"ACESTEP_ALLOWED_PATHS": str(home), "ACESTEP_TMPDIR": ""}),                     patch.object(path_policy_startup, "logger") as mock_logger:
+                path_policy_startup.log_allowed_roots()
+        args = mock_logger.warning.call_args.args
+        self.assertEqual("ACESTEP_ALLOWED_PATHS", args[2])
+        self.assertIn("List specific data folders", args[3])
+        self.assertNotIn("cannot remove", args[3])
 
 
 if __name__ == "__main__":
