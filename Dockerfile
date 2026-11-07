@@ -22,6 +22,11 @@
 #     -e ACESTEP_MODE=api \
 #     acestep
 #
+# Volumes (non-root): the container runs as uid/gid 1000 ("acestep"). Make
+# bind-mounted host dirs writable first, e.g.
+#   mkdir -p checkpoints gradio_outputs output && sudo chown -R 1000:1000 checkpoints gradio_outputs output
+# or override the user: docker run --user "$(id -u):$(id -g)" -e HOME=/tmp ...
+#
 # =============================================================================
 
 # ==================== Build arguments ====================
@@ -72,6 +77,21 @@ RUN uv sync --frozen --no-dev --python python3.11
 
 # ==================== Runtime directories ====================
 RUN mkdir -p /app/checkpoints /app/gradio_outputs /app/output
+
+# ==================== Non-root user ====================
+# Run as uid/gid 1000 instead of root. The dependency environment stays
+# root-owned (read/execute only); only the writable paths are chowned.
+# Bind-mounted host directories must be writable by uid 1000 (or run with
+# `--user $(id -u):$(id -g)` and a writable HOME).
+RUN groupadd --gid 1000 acestep \
+    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash acestep
+ENV HOME=/home/acestep
+ENV HF_HOME=/home/acestep/.cache/huggingface
+ENV UV_CACHE_DIR=/home/acestep/.cache/uv
+ENV UV_NO_SYNC=1
+RUN mkdir -p /home/acestep/.cache/huggingface /app/.cache \
+    && find /app -path /app/.venv -prune -o -exec chown acestep:acestep {} + \
+    && chown -R acestep:acestep /home/acestep
 
 # ==================== Environment ====================
 # Bind to all interfaces for Docker port-mapping
@@ -151,5 +171,7 @@ fi
 ENTRYPOINT_EOF
 
 RUN chmod +x /app/docker-entrypoint.sh
+
+USER acestep
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
