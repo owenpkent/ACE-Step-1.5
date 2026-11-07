@@ -70,6 +70,8 @@ export ACESTEP_API_KEY=your-secret-key
 python -m acestep.api_server --api-key your-secret-key
 ```
 
+The key applies to every route on this server, including the OpenRouter-compatible `/v1/...` routes mounted alongside the native API. Without a key, all routes accept anonymous requests, including the training and dataset routes that write to the filesystem. Before exposing the server beyond `127.0.0.1`, read the [Security Hardening Guide](./SECURITY_HARDENING.md).
+
 ---
 
 ## 2. Response Format
