@@ -55,3 +55,25 @@ def check_lokr_load_result(result: Any, lycoris_net: Any, weights_path: str) -> 
         )
         return
     logger.debug(f"LoKr weights at {weights_path}: all {total} keys matched")
+
+
+def rollback_lokr_adapter(decoder: Any, lycoris_net: Any, previous_net: Any) -> None:
+    """Detach a LyCORIS network whose weights failed to load, restoring the prior state.
+
+    ``apply_to`` has already replaced the decoder's module forwards by the time
+    ``load_weights`` runs, so a rejected adapter must be unwound or the decoder is left
+    running an unloaded network that ``unload_lora`` cannot see.
+
+    Args:
+        decoder: Decoder the network was applied to.
+        lycoris_net: The network to detach.
+        previous_net: Value of ``decoder._lycoris_net`` before this load, restored as-is.
+    """
+    restore_fn = getattr(lycoris_net, "restore", None)
+    if callable(restore_fn):
+        restore_fn()
+    else:
+        logger.warning("Rejected LoKr network has no restore(); decoder forwards may remain wrapped")
+    decoder._lycoris_net = previous_net
+    logger.info("Rolled back rejected LoKr adapter; decoder restored to its previous state")
+
