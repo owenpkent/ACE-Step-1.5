@@ -7,14 +7,16 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  issues: write
+  contents: read
 
 jobs:
   stale:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - name: Mark stale and close
-        uses: actions/stale@v10
+        uses: actions/stale@1e223db275d687790206a7acac4d1a11bd6fe629 # v10.4.0
         with:
           repo-token: ${{ github.token }}
 
