@@ -15,6 +15,7 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from loguru import logger
 
 from acestep.api.http.auth import (
     MISSING_HEADER_DETAIL,
@@ -372,8 +373,11 @@ async def format_input(request: Request, authorization: Optional[str] = Header(N
             "duration": result.duration,
             "vocal_language": result.language or "unknown",
         })
-    except Exception as e:
-        return _wrap_response(None, code=500, error=str(e))
+    except Exception:
+        logger.exception("format_input failed")
+        return _wrap_response(
+            None, code=500, error="Internal error while formatting input; see server log"
+        )
 
 
 @router.post("/release_task")
@@ -600,8 +604,12 @@ async def release_task(request: Request, authorization: Optional[str] = Header(N
 
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("release_task failed")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal error while creating the generation task; see server log",
+        )
 
 
 # Origins that are expected to call the API:
