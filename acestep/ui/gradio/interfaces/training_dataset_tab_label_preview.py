@@ -46,9 +46,10 @@ def build_dataset_label_and_preview_controls() -> dict[str, object]:
         with gr.Column(scale=1):
             sample_selector = gr.Slider(
                 minimum=0,
-                maximum=0,
+                maximum=1,
                 step=1,
                 value=0,
+                visible=False,
                 label=t("training.select_sample"),
                 info=t("training.select_sample_info"),
                 elem_classes=["has-info-container"],
