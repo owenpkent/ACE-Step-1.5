@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.testclient import TestClient
@@ -136,8 +138,26 @@ class TrainApiDatasetSampleRoutesHttpTests(unittest.TestCase):
         payload = response.json()
         self.assertEqual(200, payload["code"])
         self.assertEqual("✅ saved", payload["data"]["message"])
-        self.assertEqual(("x.json", "ds"), builder.saved_args)
-        self.assertEqual("x.json", client.app.state.dataset_json_path)
+        expected = str(Path("x.json").resolve())
+        self.assertEqual((expected, "ds"), builder.saved_args)
+        self.assertEqual(expected, client.app.state.dataset_json_path)
+
+    def test_save_dataset_rejects_path_outside_allowed_roots(self) -> None:
+        """POST /v1/dataset/save should return 400 and not write for a path outside allowed roots."""
+
+        client, builder = self._build_client()
+        with tempfile.TemporaryDirectory() as outside:
+            target = str(Path(outside) / "evil.json")
+            with mock.patch.dict(os.environ, {"ACESTEP_ALLOWED_PATHS": "", "ACESTEP_TMPDIR": ""}), \
+                    mock.patch("acestep.api.http.path_policy._PROJECT_ROOT", Path.cwd() / "nonexistent-root"), \
+                    mock.patch("acestep.api.http.path_policy._STARTUP_CWD", Path.cwd() / "nonexistent-root"):
+                response = client.post(
+                    "/v1/dataset/save",
+                    json={"save_path": target, "dataset_name": "ds"},
+                    headers={"Authorization": "Bearer test-token"},
+                )
+        self.assertEqual(400, response.status_code)
+        self.assertIsNone(builder.saved_args)
 
     def test_get_sample_returns_404_when_index_out_of_range(self) -> None:
         """GET /v1/dataset/sample/{sample_idx} should return 404 for out-of-range index."""

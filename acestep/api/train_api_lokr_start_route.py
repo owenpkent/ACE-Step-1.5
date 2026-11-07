@@ -12,6 +12,7 @@ from uuid import uuid4
 from fastapi import Depends, FastAPI, HTTPException
 from loguru import logger
 
+from acestep.api.http.path_policy import resolve_allowed
 from acestep.api.train_api_models import StartLoKRTrainingRequest, initialize_training_state
 from acestep.api.train_api_runtime import RuntimeComponentManager, unwrap_module
 from acestep.handler import AceStepHandler
@@ -33,6 +34,8 @@ def register_lokr_training_start_route(
         training_state = app.state.training_state
         if training_state.get("is_training", False):
             raise HTTPException(status_code=400, detail="Training already in progress")
+        tensor_dir = str(resolve_allowed(request.tensor_dir, must_exist=True, kind="dir"))
+        output_dir = str(resolve_allowed(request.output_dir, must_exist=False, kind="dir"))
 
         handler: AceStepHandler = app.state.handler
         if handler is None or handler.model is None:
@@ -79,7 +82,7 @@ def register_lokr_training_start_route(
                 max_epochs=request.train_epochs,
                 save_every_n_epochs=request.save_every_n_epochs,
                 seed=request.training_seed,
-                output_dir=request.output_dir,
+                output_dir=output_dir,
                 gradient_checkpointing=request.gradient_checkpointing,
             )
             trainer = LoKRTrainer(dit_handler=handler, lokr_config=lokr_config, training_config=training_config)
@@ -88,7 +91,7 @@ def register_lokr_training_start_route(
             mgr.restore()
             return wrap_response(None, code=500, error=f"Failed to start LoKR training: {exc}")
 
-        tensorboard_logdir = os.path.join(request.output_dir, "logs")
+        tensorboard_logdir = os.path.join(output_dir, "logs")
         os.makedirs(tensorboard_logdir, exist_ok=True)
 
         run_id = str(uuid4())
@@ -98,7 +101,7 @@ def register_lokr_training_start_route(
                 "should_stop": False,
                 "run_id": run_id,
                 "trainer": trainer,
-                "tensor_dir": request.tensor_dir,
+                "tensor_dir": tensor_dir,
                 "tensorboard_logdir": tensorboard_logdir,
                 "current_step": 0,
                 "current_loss": None,
@@ -131,7 +134,7 @@ def register_lokr_training_start_route(
         def _runner() -> None:
             local_run_id = run_id
             try:
-                for step, loss, status in trainer.train_from_preprocessed(request.tensor_dir, training_state):
+                for step, loss, status in trainer.train_from_preprocessed(tensor_dir, training_state):
                     if training_state.get("run_id") != local_run_id:
                         break
                     training_state["current_step"] = step
@@ -165,8 +168,8 @@ def register_lokr_training_start_route(
         return wrap_response(
             {
                 "message": "LoKR training started",
-                "tensor_dir": request.tensor_dir,
-                "output_dir": request.output_dir,
+                "tensor_dir": tensor_dir,
+                "output_dir": output_dir,
                 "config": training_state["config"],
             }
         )

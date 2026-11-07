@@ -1,5 +1,6 @@
 """HTTP integration tests for LoRA route registration."""
 
+from pathlib import Path
 import unittest
 from typing import Any, Dict
 
@@ -94,7 +95,7 @@ class LoraRoutesHttpTests(unittest.TestCase):
         payload = response.json()
         self.assertEqual(200, payload["code"])
         self.assertEqual("main", payload["data"]["adapter_name"])
-        self.assertEqual(("add_lora", "adapter.safetensors", "main"), handler.calls[0])
+        self.assertEqual(("add_lora", str(Path("adapter.safetensors").resolve()), "main"), handler.calls[0])
 
     def test_toggle_lora_post_preserves_wrapper_400_semantics(self):
         """POST /v1/lora/toggle should keep HTTP 200 with wrapped code=400 on failure."""

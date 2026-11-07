@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, Optional
 
 from fastapi import Depends, FastAPI
 
+from acestep.api.http.path_policy import resolve_allowed
 from acestep.api.train_api_dataset_models import LoadDatasetRequest, ScanDirectoryRequest, _serialize_samples
 
 
@@ -23,6 +24,7 @@ def register_training_dataset_scan_load_routes(
 
         from acestep.training.dataset_builder import DatasetBuilder
 
+        audio_dir = str(resolve_allowed(request.audio_dir, must_exist=True, kind="dir"))
         try:
             builder = DatasetBuilder()
             builder.metadata.name = request.dataset_name
@@ -30,7 +32,7 @@ def register_training_dataset_scan_load_routes(
             builder.metadata.tag_position = request.tag_position
             builder.metadata.all_instrumental = request.all_instrumental
 
-            samples, status = builder.scan_directory(request.audio_dir.strip())
+            samples, status = builder.scan_directory(audio_dir)
 
             if not samples:
                 return wrap_response(None, code=400, error=status)
@@ -40,7 +42,7 @@ def register_training_dataset_scan_load_routes(
                 builder.set_custom_tag(request.custom_tag, request.tag_position)
 
             app.state.dataset_builder = builder
-            app.state.dataset_json_path = os.path.join(request.audio_dir.strip(), f"{builder.metadata.name}.json")
+            app.state.dataset_json_path = os.path.join(audio_dir, f"{builder.metadata.name}.json")
 
             return wrap_response(
                 {
@@ -58,9 +60,10 @@ def register_training_dataset_scan_load_routes(
 
         from acestep.training.dataset_builder import DatasetBuilder
 
+        dataset_path = str(resolve_allowed(request.dataset_path, must_exist=True, kind="file"))
         try:
             builder = DatasetBuilder()
-            samples, status = builder.load_dataset(request.dataset_path.strip())
+            samples, status = builder.load_dataset(dataset_path)
 
             if not samples:
                 return wrap_response(

@@ -129,11 +129,13 @@ class TrainApiDatasetScanLoadRoutesHttpTests(unittest.TestCase):
         client = self._build_client()
         fake_module = types.SimpleNamespace(DatasetBuilder=_ScanSuccessBuilder)
 
+        tmp = tempfile.TemporaryDirectory(dir=Path.cwd())
+        self.addCleanup(tmp.cleanup)
         with mock.patch.dict(sys.modules, {"acestep.training.dataset_builder": fake_module}):
             response = client.post(
                 "/v1/dataset/scan",
                 json={
-                    "audio_dir": "dataset_dir",
+                    "audio_dir": tmp.name,
                     "dataset_name": "test_dataset",
                     "custom_tag": "tag-1",
                     "tag_position": "append",
@@ -148,7 +150,9 @@ class TrainApiDatasetScanLoadRoutesHttpTests(unittest.TestCase):
         self.assertEqual("scan-ok", payload["data"]["message"])
         self.assertEqual(1, payload["data"]["num_samples"])
         self.assertEqual("sample.wav", payload["data"]["samples"][0]["filename"])
-        self.assertEqual("dataset_dir/test_dataset.json", client.app.state.dataset_json_path.replace("\\", "/"))
+        self.assertEqual(
+            str(Path(tmp.name).resolve() / "test_dataset.json"), client.app.state.dataset_json_path
+        )
 
         builder = client.app.state.dataset_builder
         self.assertIsInstance(builder, _ScanSuccessBuilder)
@@ -161,10 +165,14 @@ class TrainApiDatasetScanLoadRoutesHttpTests(unittest.TestCase):
         client = self._build_client()
         fake_module = types.SimpleNamespace(DatasetBuilder=_LoadEmptyBuilder)
 
+        tmp = tempfile.TemporaryDirectory(dir=Path.cwd())
+        self.addCleanup(tmp.cleanup)
+        dataset_file = Path(tmp.name) / "empty.json"
+        dataset_file.write_text("{}", encoding="utf-8")
         with mock.patch.dict(sys.modules, {"acestep.training.dataset_builder": fake_module}):
             response = client.post(
                 "/v1/dataset/load",
-                json={"dataset_path": "missing.json"},
+                json={"dataset_path": str(dataset_file)},
                 headers={"Authorization": "Bearer test-token"},
             )
 

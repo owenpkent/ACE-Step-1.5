@@ -1,5 +1,6 @@
 """Unit tests for LoRA route registration and endpoint behavior."""
 
+from pathlib import Path
 import asyncio
 import unittest
 from typing import Any, Dict
@@ -95,7 +96,7 @@ class LoraRoutesTests(unittest.TestCase):
         payload = LoadLoRARequest(lora_path="adapter.safetensors", adapter_name="main")
         result = asyncio.run(endpoint(payload, None))
 
-        self.assertEqual(("add_lora", "adapter.safetensors", "main"), handler.calls[0])
+        self.assertEqual(("add_lora", str(Path("adapter.safetensors").resolve()), "main"), handler.calls[0])
         self.assertEqual(200, result["code"])
         self.assertEqual("main", result["data"]["adapter_name"])
 

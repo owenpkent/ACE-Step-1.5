@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from acestep.handler import AceStepHandler
+from acestep.api.http.path_policy import resolve_allowed
 
 _SUCCESS_PREFIX = "\u2705"
 _WARNING_PREFIX = "\u26a0\ufe0f"
@@ -62,12 +63,13 @@ def register_lora_routes(
         """Load LoRA adapter into the primary model."""
 
         handler = _require_initialized_handler(app)
+        lora_path = str(resolve_allowed(request.lora_path, must_exist=False, kind="any"))
         try:
             adapter_name = request.adapter_name.strip() if isinstance(request.adapter_name, str) else None
             if adapter_name:
-                result = handler.add_lora(request.lora_path, adapter_name=adapter_name)
+                result = handler.add_lora(lora_path, adapter_name=adapter_name)
             else:
-                result = handler.load_lora(request.lora_path)
+                result = handler.load_lora(lora_path)
 
             if _is_success_message(result):
                 response_data: Dict[str, Any] = {"message": result, "lora_path": request.lora_path}
