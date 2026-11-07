@@ -260,6 +260,22 @@ class LifecycleTests(unittest.TestCase):
         self.assertIn("restore failed", message)
         handler.model.decoder.load_state_dict.assert_not_called()
 
+    def test_load_lokr_adapter_checks_load_result(self):
+        """The load_weights result should be passed to the key-mismatch checker."""
+        decoder = _DummyDecoder()
+        net = Mock()
+        fake_lycoris = SimpleNamespace(
+            LycorisNetwork=SimpleNamespace(apply_preset=Mock()),
+            create_lycoris=Mock(return_value=net),
+        )
+        base = "acestep.core.generation.handler.lora.lifecycle."
+        with patch.dict("sys.modules", {"lycoris": fake_lycoris}):
+            with patch(base + "_load_lokr_config", return_value=lifecycle.LoKRConfig()):
+                with patch(base + "check_lokr_load_result") as mock_check:
+                    lifecycle._load_lokr_adapter(decoder, "weights.safetensors")
+
+        mock_check.assert_called_once_with(net.load_weights.return_value, net, "weights.safetensors")
+
 
 if __name__ == "__main__":
     unittest.main()

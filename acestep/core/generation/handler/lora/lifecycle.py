@@ -7,6 +7,7 @@ from typing import Any
 from loguru import logger
 
 from acestep.constants import DEBUG_MODEL_LOADING
+from acestep.core.generation.handler.lora.lokr_load_check import check_lokr_load_result
 from acestep.debug_utils import debug_log
 from acestep.training.configs import LoKRConfig
 
@@ -178,7 +179,8 @@ def _load_lokr_adapter(decoder: Any, weights_path: str) -> Any:
 
     lycoris_net.apply_to()
     decoder._lycoris_net = lycoris_net
-    lycoris_net.load_weights(weights_path)
+    result = lycoris_net.load_weights(weights_path)
+    check_lokr_load_result(result, lycoris_net, weights_path)
     return lycoris_net
 
 
