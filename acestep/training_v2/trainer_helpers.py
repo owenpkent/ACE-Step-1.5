@@ -301,6 +301,29 @@ def verify_saved_adapter(output_dir: str) -> None:
         logger.warning("[WARN] Could not verify adapter: %s", exc)
 
 
+def load_training_state_file(state_path: str, map_location: Any = None) -> dict:
+    """Load ``training_state.pt`` with ``weights_only=True``.
+
+    The file holds only tensors, numbers, lists and dicts (epoch, step,
+    optimizer and scheduler state), all of which the safe unpickler accepts.
+    Anything else is refused rather than executed.
+    """
+    try:
+        state = torch.load(state_path, map_location=map_location, weights_only=True)
+    except Exception as exc:
+        msg = (
+            f"Refusing to load resume state {state_path}: the file is not a "
+            f"plain tensor/number state and will not be loaded ({exc})"
+        )
+        logger.error(msg)
+        raise ValueError(msg) from exc
+    if not isinstance(state, dict):
+        msg = f"Refusing to load resume state {state_path}: expected a dict"
+        logger.error(msg)
+        raise ValueError(msg)
+    return state
+
+
 def resume_checkpoint(
     trainer: Any,
     resume_path: str,
@@ -336,9 +359,7 @@ def resume_checkpoint(
             )
         load_lokr_weights(module.lycoris_net, str(lokr_weights_path))
         if state_path.exists():
-            state = torch.load(
-                str(state_path), map_location=module.device, weights_only=False
-            )
+            state = load_training_state_file(str(state_path), module.device)
             epoch = state.get("epoch", 0)
             step = state.get("global_step", 0)
             if "optimizer_state_dict" in state:
