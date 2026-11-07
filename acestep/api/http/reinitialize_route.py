@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict
 
 import torch
 from fastapi import Depends, FastAPI, HTTPException
+from loguru import logger
 
 
 def register_reinitialize_route(
@@ -102,5 +103,6 @@ def register_reinitialize_route(
             if reloaded:
                 message += f"\n\U0001f504 Reloaded: {', '.join(reloaded)}"
             return wrap_response({"message": message, "reloaded": reloaded})
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"Reinitialization failed: {str(exc)}")
+        except Exception:
+            logger.exception("Reinitialization failed")
+            return wrap_response(None, code=500, error="Reinitialization failed; see server log")

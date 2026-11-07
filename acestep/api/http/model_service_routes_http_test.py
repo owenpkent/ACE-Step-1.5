@@ -255,7 +255,7 @@ class ModelServiceRoutesHttpTests(unittest.TestCase):
         self.assertEqual(200, response.status_code)
         payload = response.json()
         self.assertEqual(500, payload["code"])
-        self.assertIn("LLM init failed", payload["error"])
+        self.assertEqual("Model initialization failed; see server log", payload["error"])
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ from threading import Lock
 from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import FastAPI, Header, HTTPException, Request
+from loguru import logger
 
 
 def register_sample_format_routes(
@@ -156,8 +157,9 @@ def register_sample_format_routes(
                     "vocal_language": format_result.language or language or "unknown",
                 }
             )
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"format_sample error: {str(exc)}")
+        except Exception:
+            logger.exception("format_sample failed")
+            return wrap_response(None, code=500, error="format_sample failed; see server log")
 
     @app.post("/v1/create_sample")
     async def create_sample_endpoint(request: Request, authorization: Optional[str] = Header(None)):
@@ -242,5 +244,6 @@ def register_sample_format_routes(
                 "timesignature": result.timesignature or "",
                 "vocal_language": result.language or vocal_language,
             })
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"create_sample error: {str(exc)}")
+        except Exception:
+            logger.exception("create_sample failed")
+            return wrap_response(None, code=500, error="create_sample failed; see server log")

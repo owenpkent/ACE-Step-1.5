@@ -188,5 +188,6 @@ def register_training_api_routes(
                 shutil.rmtree(export_path)
             shutil.copytree(source_path, export_path)
             return wrap_response({"message": "LoRA exported successfully", "export_path": export_path, "source": source_path})
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"Export failed: {exc}")
+        except Exception:
+            logger.exception("Export failed")
+            return wrap_response(None, code=500, error="Export failed; see server log")

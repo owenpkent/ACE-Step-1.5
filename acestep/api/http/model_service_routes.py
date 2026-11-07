@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from acestep.api.http.model_init_service import initialize_models_for_request
 from acestep.constants import TASK_TYPES_BASE, TASK_TYPES_TURBO
+from loguru import logger
 
 
 class InitModelRequest(BaseModel):
@@ -226,6 +227,8 @@ def register_model_service_routes(
                 msg = str(exc)
                 if "slot" in msg.lower() and "not available" in msg.lower():
                     return wrap_response(None, code=400, error=msg)
-                return wrap_response(None, code=500, error=f"Model initialization failed: {msg}")
-            except Exception as exc:
-                return wrap_response(None, code=500, error=f"Model initialization failed: {str(exc)}")
+                logger.exception("Model initialization failed")
+                return wrap_response(None, code=500, error="Model initialization failed; see server log")
+            except Exception:
+                logger.exception("Model initialization failed")
+                return wrap_response(None, code=500, error="Model initialization failed; see server log")

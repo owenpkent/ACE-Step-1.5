@@ -9,6 +9,7 @@ from fastapi import Depends, FastAPI
 
 from acestep.api.http.path_policy import resolve_allowed
 from acestep.api.train_api_dataset_models import LoadDatasetRequest, ScanDirectoryRequest, _serialize_samples
+from loguru import logger
 
 
 def register_training_dataset_scan_load_routes(
@@ -51,8 +52,9 @@ def register_training_dataset_scan_load_routes(
                     "samples": _serialize_samples(builder),
                 }
             )
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"Scan failed: {exc}")
+        except Exception:
+            logger.exception("Scan failed")
+            return wrap_response(None, code=500, error="Scan failed; see server log")
 
     @app.post("/v1/dataset/load")
     async def load_dataset(request: LoadDatasetRequest, _: None = Depends(verify_api_key)):
@@ -89,8 +91,9 @@ def register_training_dataset_scan_load_routes(
                     "samples": _serialize_samples(builder),
                 }
             )
-        except Exception as exc:
-            error_msg = f"Load failed: {exc}"
+        except Exception:
+            logger.exception("Load failed")
+            error_msg = "Load failed; see server log"
             return wrap_response(
                 {
                     "message": error_msg,

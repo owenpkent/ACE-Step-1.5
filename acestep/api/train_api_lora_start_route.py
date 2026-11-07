@@ -72,10 +72,11 @@ def register_lora_training_start_route(
                 gradient_checkpointing=request.gradient_checkpointing,
             )
             trainer = LoRATrainer(dit_handler=handler, lora_config=lora_config, training_config=training_config)
-        except Exception as exc:
+        except Exception:
+            logger.exception("Failed to start LoRA training")
             training_state["is_training"] = False
             mgr.restore()
-            return wrap_response(None, code=500, error=f"Failed to start training: {exc}")
+            return wrap_response(None, code=500, error="Failed to start training; see server log")
 
         tensorboard_logdir = os.path.join(output_dir, "logs")
         os.makedirs(tensorboard_logdir, exist_ok=True)
