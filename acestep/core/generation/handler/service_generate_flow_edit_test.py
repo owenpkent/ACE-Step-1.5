@@ -196,7 +196,7 @@ class CoverStillRunsLmTests(unittest.TestCase):
         import re
         from pathlib import Path
 
-        src = (Path(__file__).resolve().parents[3] / "inference.py").read_text()
+        src = (Path(__file__).resolve().parents[3] / "inference.py").read_text(encoding="utf-8")
 
         # skip_lm_tasks is fed from DIRECT_CONDITIONING_TASKS, not a literal.
         self.assertIn("skip_lm_tasks = DIRECT_CONDITIONING_TASKS", src)
