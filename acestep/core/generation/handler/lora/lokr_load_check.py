@@ -33,12 +33,8 @@ def check_lokr_load_result(result: Any, lycoris_net: Any, weights_path: str) -> 
     """
     if result is None:
         return
-    if isinstance(result, dict):
-        missing = _extract_keys(result, "missing keys", "missing_keys")
-        unexpected = _extract_keys(result, "unexpected keys", "unexpected_keys")
-    else:
-        missing = _extract_keys(result, "", "missing_keys")
-        unexpected = _extract_keys(result, "", "unexpected_keys")
+    missing = _extract_keys(result, "missing keys", "missing_keys")
+    unexpected = _extract_keys(result, "unexpected keys", "unexpected_keys")
     if missing is None or unexpected is None:
         return
 
