@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import threading
 import unittest
+import urllib.parse
 from types import SimpleNamespace
 from unittest import mock
 
@@ -78,6 +79,36 @@ class RuntimeHelpersTests(unittest.TestCase):
         argv = popen.call_args.args[0]
         self.assertEqual("192.168.1.5", argv[argv.index("--host") + 1])
         self.assertTrue(url.startswith("http://192.168.1.5:"))
+
+    def _start_with_host(self, host):
+        """Run start_tensorboard with a mocked Popen; return (url, argv)."""
+
+        app = SimpleNamespace(state=SimpleNamespace(tensorboard_process=None))
+        with mock.patch.dict(os.environ, {"ACESTEP_API_HOST": host}), mock.patch(
+            "acestep.api.runtime_helpers.subprocess.Popen", return_value=mock.Mock()
+        ) as popen:
+            url = start_tensorboard(app, logdir="logs", stop_tensorboard_fn=lambda a: None)
+        return url, popen.call_args.args[0]
+
+    def test_start_tensorboard_expanded_ipv6_loopback_uses_localhost(self):
+        """Non-canonical IPv6 loopback spellings map to localhost in the URL."""
+
+        url, _ = self._start_with_host("0:0:0:0:0:0:0:1")
+        self.assertTrue(url.startswith("http://localhost:"))
+
+    def test_start_tensorboard_brackets_ipv6_literal(self):
+        """A routable IPv6 host is bracketed in the URL but raw in --host."""
+
+        url, argv = self._start_with_host("2001:db8::5")
+        self.assertTrue(url.startswith("http://[2001:db8::5]:"))
+        self.assertIsInstance(urllib.parse.urlsplit(url).port, int)
+        self.assertEqual("2001:db8::5", argv[argv.index("--host") + 1])
+
+    def test_start_tensorboard_hostname_passes_through(self):
+        """A hostname bind value is used unchanged in the URL."""
+
+        url, _ = self._start_with_host("tb.internal")
+        self.assertTrue(url.startswith("http://tb.internal:"))
 
     def test_start_tensorboard_returns_none_on_failure(self):
         """Start helper should return None when startup raises an exception."""

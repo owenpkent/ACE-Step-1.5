@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import subprocess
@@ -39,6 +40,24 @@ def stop_tensorboard(app: Any) -> None:
         pass
 
 
+def _tensorboard_url_host(bind_host: str) -> str:
+    """Return the host to embed in the TensorBoard URL for a bind address.
+
+    Loopback and unspecified addresses map to "localhost", other IPv6 literals are
+    bracketed, and IPv4 addresses or hostnames pass through unchanged.
+    """
+
+    try:
+        addr = ipaddress.ip_address(bind_host)
+    except ValueError:
+        return bind_host
+    if addr.is_loopback or addr.is_unspecified:
+        return "localhost"
+    if addr.version == 6:
+        return f"[{addr.compressed}]"
+    return bind_host
+
+
 def start_tensorboard(
     app: Any,
     logdir: str,
@@ -74,8 +93,7 @@ def start_tensorboard(
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        url_host = "localhost" if bind_host in ("127.0.0.1", "0.0.0.0", "::", "::1") else bind_host
-        return f"http://{url_host}:{tensorboard_port}"
+        return f"http://{_tensorboard_url_host(bind_host)}:{tensorboard_port}"
     except Exception:
         return None
 
