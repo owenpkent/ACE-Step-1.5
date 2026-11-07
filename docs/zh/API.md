@@ -38,7 +38,9 @@ API 支持可选的 API Key 认证。启用后，必须在请求中提供有效�
 
 支持两种认证方式：
 
-**方式 A：请求体中的 ai_token**
+**方式 A：请求体中的 ai_token（默认禁用）**
+
+请求体可能泄露到访问日志、代理和崩溃转储中，因此除非在服务端设置 `ACESTEP_ALLOW_BODY_API_TOKEN=true`，否则请求体中的 `ai_token` 将被忽略。建议使用方式 B。
 
 ```json
 {
