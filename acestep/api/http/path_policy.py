@@ -8,6 +8,7 @@ read, written, scanned or deleted.
 from __future__ import annotations
 
 import os
+import stat
 from pathlib import Path
 from typing import List, Literal, Optional
 
@@ -29,6 +30,22 @@ def _safe_resolve(raw: str) -> Optional[Path]:
         return Path(raw).expanduser().resolve(strict=False)
     except (OSError, RuntimeError, ValueError):
         return None
+
+
+def _is_link(path: Path) -> bool:
+    """Return True if the final component of ``path`` is a symlink or Windows junction.
+
+    The path is not resolved. A missing or unreadable path is not a link.
+    """
+
+    try:
+        st = os.lstat(path)
+    except (OSError, ValueError):
+        return False
+    if stat.S_ISLNK(st.st_mode):
+        return True
+    mount_point = getattr(stat, "IO_REPARSE_TAG_MOUNT_POINT", -1)
+    return getattr(st, "st_reparse_tag", 0) == mount_point
 
 
 def allowed_roots() -> List[Path]:
@@ -63,6 +80,7 @@ def resolve_allowed(
     must_exist: bool,
     kind: Literal["dir", "file", "any"],
     allow_root: bool = True,
+    reject_link: bool = False,
 ) -> Path:
     """Resolve ``path`` (following symlinks) and require it to sit under an allowed root.
 
@@ -71,7 +89,10 @@ def resolve_allowed(
         must_exist: Require the path to exist and match ``kind``.
         kind: ``"dir"``, ``"file"`` or ``"any"`` (only checked when it exists).
         allow_root: When False, a path equal to an allowed root is rejected
-            (use before destructive operations such as ``rmtree``).
+            (use before destructive operations such as ``rmtree``). This applies
+            to every allowed root, including roots nested inside other roots.
+        reject_link: When True, reject a path whose final component is a symlink
+            or Windows junction (checked before resolving; use before ``rmtree``).
 
     Raises:
         HTTPException: 400 for empty, escaping, missing or wrong-kind paths.
@@ -81,19 +102,19 @@ def resolve_allowed(
     if not raw or "\x00" in raw:
         raise HTTPException(status_code=400, detail="A valid path is required")
 
+    if reject_link and _is_link(Path(raw).expanduser()):
+        raise HTTPException(
+            status_code=400, detail="Path must not be a symbolic link or junction"
+        )
+
     resolved = _safe_resolve(raw)
     if resolved is None:
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    for root in allowed_roots():
-        try:
-            rel = resolved.relative_to(root)
-        except ValueError:
-            continue
-        if not allow_root and not rel.parts:
-            continue
-        break
-    else:
+    roots = allowed_roots()
+    if not allow_root and resolved in roots:
+        raise HTTPException(status_code=400, detail=_REJECTED)
+    if not any(resolved == root or root in resolved.parents for root in roots):
         raise HTTPException(status_code=400, detail=_REJECTED)
 
     if must_exist and not resolved.exists():

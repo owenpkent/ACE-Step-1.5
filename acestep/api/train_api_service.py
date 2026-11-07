@@ -158,8 +158,17 @@ def register_training_api_routes(
         """Export trained LoRA/LoKr weights."""
 
         lora_output_dir = str(resolve_allowed(request.lora_output_dir, must_exist=True, kind="dir"))
-        # export_path is removed with rmtree below, so it may never be an allowed root itself.
-        export_path = str(resolve_allowed(request.export_path, must_exist=False, kind="dir", allow_root=False))
+        # export_path is removed with rmtree below: it may never be an allowed root itself,
+        # nor a symlink/junction (resolving it would make rmtree wipe the link target).
+        export_path = str(
+            resolve_allowed(
+                request.export_path,
+                must_exist=False,
+                kind="dir",
+                allow_root=False,
+                reject_link=True,
+            )
+        )
         final_dir = os.path.join(lora_output_dir, "final")
         checkpoint_dir = os.path.join(lora_output_dir, "checkpoints")
         if os.path.exists(final_dir):

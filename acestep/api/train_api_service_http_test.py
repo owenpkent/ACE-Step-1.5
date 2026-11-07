@@ -164,6 +164,65 @@ class TrainingApiServiceHttpTests(unittest.TestCase):
         self.assertEqual(200, response.status_code)
         self.assertEqual(1, response.json()["data"]["num_samples"])
 
+    def _export_fixture(self, tmp: str) -> Path:
+        """Create lora/final/adapter.bin under ``tmp`` and return the resolved root."""
+
+        root = Path(tmp).resolve()
+        (root / "lora" / "final").mkdir(parents=True)
+        (root / "lora" / "final" / "adapter.bin").write_bytes(b"x")
+        return root
+
+    def _post_export(self, client: TestClient, root: Path, export_path: Path):
+        """POST /v1/training/export with mocked rmtree/copytree; return (resp, rm, cp)."""
+
+        with mock.patch.dict(os.environ, {"ACESTEP_ALLOWED_PATHS": str(root)}), \
+                mock.patch("acestep.api.train_api_service.shutil.rmtree") as rm, \
+                mock.patch("acestep.api.train_api_service.shutil.copytree") as cp:
+            response = client.post(
+                "/v1/training/export",
+                json={"lora_output_dir": str(root / "lora"), "export_path": str(export_path)},
+                headers={"Authorization": "Bearer test-token"},
+            )
+        return response, rm, cp
+
+    def test_export_rejects_link_destination(self):
+        """POST /v1/training/export must 400 and not rmtree when export_path is a link."""
+
+        client, _calls, _app = self._build_client()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._export_fixture(tmp)
+            target = root / "target"
+            target.mkdir()
+            (target / "keep.txt").write_text("k", encoding="utf-8")
+            link = root / "export-link"
+            if os.name == "nt":
+                import _winapi
+
+                _winapi.CreateJunction(str(target), str(link))
+            else:
+                try:
+                    os.symlink(target, link, target_is_directory=True)
+                except (OSError, NotImplementedError):
+                    self.skipTest("symlinks not permitted on this platform")
+            response, rm, cp = self._post_export(client, root, link)
+            self.assertEqual(400, response.status_code)
+            rm.assert_not_called()
+            cp.assert_not_called()
+            self.assertTrue((target / "keep.txt").exists())
+
+    def test_export_to_plain_new_dir_succeeds(self):
+        """POST /v1/training/export copies to a plain non-existent directory."""
+
+        client, _calls, _app = self._build_client()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._export_fixture(tmp)
+            export = root / "export"
+            response, rm, cp = self._post_export(client, root, export)
+            self.assertEqual(200, response.status_code)
+            self.assertEqual(200, response.json()["code"])
+            rm.assert_not_called()
+            cp.assert_called_once_with(str(root / "lora" / "final"), str(export))
+
 
 if __name__ == "__main__":
     unittest.main()
