@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -61,6 +62,36 @@ class LogAllowedRootsTests(unittest.TestCase):
                     patch.object(path_policy_startup, "logger") as mock_logger:
                 path_policy_startup.log_allowed_roots()
         mock_logger.warning.assert_not_called()
+
+    def test_warning_names_origin_and_does_not_offer_allowed_paths_as_replacement(self) -> None:
+        """A broad startup root tells the operator to restart elsewhere, not to set the additive var."""
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp).resolve() / "home"
+            home.mkdir()
+            with patch.object(path_policy_startup, "allowed_roots", return_value=[home]),                     patch.object(path_policy_startup, "_home_directory", return_value=home),                     patch.object(path_policy_startup.path_policy, "_STARTUP_CWD", home),                     patch.object(path_policy_startup.path_policy, "_PROJECT_ROOT", home / "proj"),                     patch.dict(os.environ, {"ACESTEP_ALLOWED_PATHS": "", "ACESTEP_TMPDIR": ""}),                     patch.object(path_policy_startup, "logger") as mock_logger:
+                path_policy_startup.log_allowed_roots()
+        args = mock_logger.warning.call_args.args
+        self.assertEqual("startup working directory", args[2])
+        self.assertIn("Restart the server from the project directory", args[3])
+        self.assertIn("only adds roots and cannot remove this one", args[3])
+        self.assertNotIn("instead", args[3].split("only adds roots")[0])
+
+    def test_origin_detection_for_env_roots(self) -> None:
+        """Roots that come from ACESTEP_TMPDIR or ACESTEP_ALLOWED_PATHS are attributed to them."""
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            (base / "tmp").mkdir()
+            (base / "data").mkdir()
+            with patch.object(path_policy_startup.path_policy, "_STARTUP_CWD", base / "proj"),                     patch.object(path_policy_startup.path_policy, "_PROJECT_ROOT", base / "proj"),                     patch.dict(os.environ, {"ACESTEP_TMPDIR": str(base / "tmp"),
+                                            "ACESTEP_ALLOWED_PATHS": str(base / "data")}):
+                self.assertEqual(["ACESTEP_TMPDIR"], path_policy_startup.root_origins(base / "tmp"))
+                self.assertEqual(
+                    ["ACESTEP_ALLOWED_PATHS"], path_policy_startup.root_origins(base / "data")
+                )
+                self.assertEqual(
+                    ["startup working directory", "project directory"],
+                    path_policy_startup.root_origins(base / "proj"),
+                )
 
 
 if __name__ == "__main__":

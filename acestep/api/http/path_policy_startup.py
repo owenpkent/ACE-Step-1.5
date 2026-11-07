@@ -6,11 +6,13 @@ when one of them is so broad that confinement gives little protection.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import List
 
 from loguru import logger
 
+from acestep.api.http import path_policy
 from acestep.api.http.path_policy import ALLOWED_PATHS_ENV, allowed_roots
 
 
@@ -41,6 +43,43 @@ def broad_roots(roots: List[Path]) -> List[Path]:
     return [root for root in roots if is_broad_root(root)]
 
 
+def root_origins(root: Path) -> List[str]:
+    """Return which settings produced ``root``: startup directory, project root, env vars."""
+    origins: List[str] = []
+    if root == path_policy._STARTUP_CWD:
+        origins.append("startup working directory")
+    if root == path_policy._PROJECT_ROOT:
+        origins.append("project directory")
+    tmpdir = (os.getenv("ACESTEP_TMPDIR") or "").strip()
+    if tmpdir and path_policy._safe_resolve(tmpdir) == root:
+        origins.append("ACESTEP_TMPDIR")
+    for entry in (os.getenv(ALLOWED_PATHS_ENV) or "").split(os.pathsep):
+        if entry.strip() and path_policy._safe_resolve(entry.strip()) == root:
+            origins.append(ALLOWED_PATHS_ENV)
+            break
+    return origins
+
+
+_REMEDIES = {
+    "startup working directory": (
+        "Restart the server from the project directory or another narrow folder; the "
+        "startup directory is always an allowed root."
+    ),
+    "project directory": "Install the project in its own folder rather than a home or drive root.",
+    "ACESTEP_TMPDIR": "Point ACESTEP_TMPDIR at a dedicated folder.",
+    ALLOWED_PATHS_ENV: f"List specific data folders in {ALLOWED_PATHS_ENV} instead of a broad one.",
+}
+
+
+def _remedy(origins: List[str]) -> str:
+    """Return the remedy sentence(s) for the given origins."""
+    parts = [_REMEDIES[origin] for origin in origins if origin in _REMEDIES]
+    if not parts:
+        parts.append("Narrow the setting that produced it.")
+    parts.append(f"{ALLOWED_PATHS_ENV} only adds roots and cannot remove this one.")
+    return " ".join(parts)
+
+
 def log_allowed_roots() -> List[Path]:
     """Log the allowed roots at startup and warn about broad ones.
 
@@ -53,11 +92,12 @@ def log_allowed_roots() -> List[Path]:
         "; ".join(str(root) for root in roots),
     )
     for root in broad_roots(roots):
+        origins = root_origins(root)
         logger.warning(
-            "[path policy] Allowed root {} is a drive root or a home directory, so API callers "
-            "can read and write anything beneath it. Start the server from the project "
-            "directory, or set {} to the specific data folders instead.",
+            "[path policy] Allowed root {} ({}) is a drive root or a home directory, so API "
+            "callers can read and write anything beneath it. {}",
             root,
-            ALLOWED_PATHS_ENV,
+            ", ".join(origins) or "unknown origin",
+            _remedy(origins),
         )
     return roots
