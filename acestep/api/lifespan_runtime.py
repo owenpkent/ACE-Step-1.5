@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from threading import Lock
 from typing import Any, Callable
 
+from acestep.api.http.path_policy_startup import log_allowed_roots
+
 
 @dataclass
 class LifespanRuntime:
@@ -81,6 +83,8 @@ def initialize_lifespan_runtime(
 
     os.environ.setdefault("TRITON_CACHE_DIR", triton_cache_root)
     os.environ.setdefault("TORCHINDUCTOR_CACHE_DIR", inductor_cache_root)
+
+    log_allowed_roots()
 
     handler = ace_handler_cls()
     llm_handler = llm_handler_cls()
