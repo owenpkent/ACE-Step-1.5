@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hmac
 import asyncio
 import base64
 import functools
@@ -89,7 +90,7 @@ async def verify_api_key(authorization: Optional[str] = Header(None)):
     else:
         token = authorization
 
-    if token != _api_key:
+    if not hmac.compare_digest(token.encode("utf-8"), _api_key.encode("utf-8")):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 

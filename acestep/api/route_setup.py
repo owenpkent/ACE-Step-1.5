@@ -67,7 +67,7 @@ def configure_api_routes(
         allow_headers=["Content-Type", "Authorization"],
     )
 
-    openrouter_router = create_openrouter_router(lambda: app.state)
+    openrouter_router = create_openrouter_router(lambda: app.state, verify_api_key=verify_api_key)
     app.include_router(openrouter_router)
 
     register_model_service_routes(
