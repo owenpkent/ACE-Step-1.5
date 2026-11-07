@@ -198,6 +198,28 @@ class LifecycleTests(unittest.TestCase):
         dora_net.load_weights.assert_called_once_with("weights.safetensors")
         self.assertIs(decoder._lycoris_net, dora_net)
 
+    def test_load_lokr_adapter_rolls_back_when_weights_rejected(self):
+        """A rejected load must restore the decoder and clear the adapter reference."""
+        decoder = _DummyDecoder()
+        base_net = Mock()
+        base_net.load_weights.return_value = {"missing keys": ["a"], "unexpected keys": ["z"]}
+        base_net.state_dict.return_value = {"a": None}
+        fake_lycoris = SimpleNamespace(
+            LycorisNetwork=SimpleNamespace(apply_preset=Mock()),
+            create_lycoris=Mock(return_value=base_net),
+        )
+
+        with patch.dict("sys.modules", {"lycoris": fake_lycoris}):
+            with patch(
+                "acestep.core.generation.handler.lora.lifecycle._load_lokr_config",
+                return_value=lifecycle.LoKRConfig(),
+            ):
+                with self.assertRaises(ValueError):
+                    lifecycle._load_lokr_adapter(decoder, "weights.safetensors")
+
+        base_net.restore.assert_called_once_with()
+        self.assertIsNone(decoder._lycoris_net)
+
     def test_load_lokr_adapter_uses_base_net_when_dora_not_supported(self):
         """DoRA create failures should warn and keep the initially created LyCORIS net."""
         decoder = _DummyDecoder()
@@ -259,6 +281,22 @@ class LifecycleTests(unittest.TestCase):
         self.assertIn("❌ Failed to unload LoRA", message)
         self.assertIn("restore failed", message)
         handler.model.decoder.load_state_dict.assert_not_called()
+
+    def test_load_lokr_adapter_checks_load_result(self):
+        """The load_weights result should be passed to the key-mismatch checker."""
+        decoder = _DummyDecoder()
+        net = Mock()
+        fake_lycoris = SimpleNamespace(
+            LycorisNetwork=SimpleNamespace(apply_preset=Mock()),
+            create_lycoris=Mock(return_value=net),
+        )
+        base = "acestep.core.generation.handler.lora.lifecycle."
+        with patch.dict("sys.modules", {"lycoris": fake_lycoris}):
+            with patch(base + "_load_lokr_config", return_value=lifecycle.LoKRConfig()):
+                with patch(base + "check_lokr_load_result") as mock_check:
+                    lifecycle._load_lokr_adapter(decoder, "weights.safetensors")
+
+        mock_check.assert_called_once_with(net.load_weights.return_value, net, "weights.safetensors")
 
 
 if __name__ == "__main__":
