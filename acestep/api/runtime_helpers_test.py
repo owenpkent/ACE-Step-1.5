@@ -104,6 +104,13 @@ class RuntimeHelpersTests(unittest.TestCase):
         self.assertIsInstance(urllib.parse.urlsplit(url).port, int)
         self.assertEqual("2001:db8::5", argv[argv.index("--host") + 1])
 
+    def test_start_tensorboard_keeps_alternate_ipv4_loopback(self):
+        """An explicit 127.0.0.2 bind is kept in both --host and the URL."""
+
+        url, argv = self._start_with_host("127.0.0.2")
+        self.assertEqual("127.0.0.2", argv[argv.index("--host") + 1])
+        self.assertTrue(url.startswith("http://127.0.0.2:"))
+
     def test_start_tensorboard_hostname_passes_through(self):
         """A hostname bind value is used unchanged in the URL."""
 

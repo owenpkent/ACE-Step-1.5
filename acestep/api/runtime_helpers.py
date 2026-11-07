@@ -43,15 +43,18 @@ def stop_tensorboard(app: Any) -> None:
 def _tensorboard_url_host(bind_host: str) -> str:
     """Return the host to embed in the TensorBoard URL for a bind address.
 
-    Loopback and unspecified addresses map to "localhost", other IPv6 literals are
-    bracketed, and IPv4 addresses or hostnames pass through unchanged.
+    The canonical loopbacks (127.0.0.1, ::1) and unspecified addresses map to
+    "localhost". Other IPv6 literals are bracketed. Everything else, including
+    alternate 127/8 loopbacks such as 127.0.0.2, passes through unchanged so the
+    advertised URL reaches the address TensorBoard actually listens on.
     """
 
     try:
         addr = ipaddress.ip_address(bind_host)
     except ValueError:
         return bind_host
-    if addr.is_loopback or addr.is_unspecified:
+    canonical_loopback = addr in (ipaddress.ip_address("127.0.0.1"), ipaddress.ip_address("::1"))
+    if canonical_loopback or addr.is_unspecified:
         return "localhost"
     if addr.version == 6:
         return f"[{addr.compressed}]"
