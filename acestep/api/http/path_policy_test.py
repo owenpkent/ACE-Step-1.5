@@ -186,6 +186,53 @@ class PathPolicyTests(unittest.TestCase):
             with self.assertRaises(HTTPException):
                 path_policy.resolve_allowed(bad, must_exist=False, kind="any")
 
+    def _make_link(self, link: Path, target: Path) -> None:
+        """Create a directory symlink, falling back to a junction on Windows, or skip."""
+
+        try:
+            os.symlink(target, link, target_is_directory=True)
+            return
+        except (OSError, NotImplementedError):
+            pass
+        if os.name == "nt":
+            import _winapi
+
+            if hasattr(_winapi, "CreateJunction"):
+                _winapi.CreateJunction(str(target), str(link))
+                return
+        self.skipTest("links not permitted on this platform")
+
+    def test_link_outside_roots_gets_generic_rejection(self) -> None:
+        """reject_link must not reveal whether a path outside the roots is a link."""
+
+        (self.outside / "target").mkdir()
+        link = self.outside / "link"
+        self._make_link(link, self.outside / "target")
+        with self.assertRaises(HTTPException) as ctx:
+            path_policy.resolve_allowed(str(link), must_exist=False, kind="dir", reject_link=True)
+        self.assertEqual(path_policy._REJECTED, ctx.exception.detail)
+
+    @unittest.skipUnless(os.name == "nt", "reserved device names are Windows-only")
+    def test_reserved_device_names_rejected(self) -> None:
+        """Device names under an allowed root are rejected; look-alikes are not."""
+
+        for name in ("NUL", "con", "COM1.txt", os.path.join("sub", "lpt1"), "aux.wav"):
+            with self.assertRaises(HTTPException) as ctx:
+                path_policy.resolve_allowed(str(self.root / name), must_exist=False, kind="any")
+            self.assertIn("reserved", ctx.exception.detail)
+        for name in ("console.txt", "nul_data", "com10", "auxiliary"):
+            got = path_policy.resolve_allowed(str(self.root / name), must_exist=False, kind="any")
+            self.assertEqual(self.root / name, got)
+
+    @unittest.skipUnless(os.name == "nt", "case-insensitive paths are Windows-only")
+    def test_case_variant_of_root_is_accepted(self) -> None:
+        """A differently-cased spelling of an allowed root still resolves, link check included."""
+
+        (self.root / "data").mkdir()
+        spelled = os.path.join(str(self.root).upper(), "data")
+        got = path_policy.resolve_allowed(spelled, must_exist=True, kind="dir", reject_link=True)
+        self.assertEqual(self.root / "data", got)
+
 
 if __name__ == "__main__":
     unittest.main()
