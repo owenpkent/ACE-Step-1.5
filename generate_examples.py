@@ -78,7 +78,6 @@ def generate_examples(num_examples=50, output_dir="examples/text2music", start_i
                 audio_codes="NO USER INPUT",  # Empty input triggers example generation
                 use_constrained_decoding=True,
                 temperature=0.85,
-                cfg_scale=1.0,
                 top_k=None,
                 top_p=0.9,
             )

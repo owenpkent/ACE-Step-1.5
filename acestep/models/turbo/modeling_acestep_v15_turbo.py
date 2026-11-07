@@ -514,6 +514,7 @@ class AceStepDiTLayer(GradientCheckpointingLayer):
         hidden_states = (hidden_states + attn_output * gate_msa).type_as(hidden_states)
 
         # Step 2: Cross-attention (if enabled) for conditioning on encoder outputs
+        cross_attn_weights = None
         if self.use_cross_attention:
             norm_hidden_states = self.cross_attn_norm(hidden_states).type_as(hidden_states)
             attn_output, cross_attn_weights = self.cross_attn(
