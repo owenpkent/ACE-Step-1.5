@@ -234,5 +234,63 @@ class PathPolicyTests(unittest.TestCase):
         self.assertEqual(self.root / "data", got)
 
 
+    def test_outside_link_into_root_rejected_for_destructive_use(self) -> None:
+        """A link outside the roots that points inside is refused with reject_link, accepted otherwise."""
+
+        target = self.root / "target"
+        target.mkdir()
+        alias = self.outside / "alias"
+        self._make_link(alias, target)
+        with self.assertRaises(HTTPException) as ctx:
+            path_policy.resolve_allowed(str(alias), must_exist=False, kind="dir", reject_link=True)
+        self.assertEqual(path_policy._REJECTED, ctx.exception.detail)
+        followed = path_policy.resolve_allowed(str(alias), must_exist=False, kind="dir")
+        self.assertEqual(target, followed)
+
+    @unittest.skipUnless(os.name == "nt", "case-insensitive paths are Windows-only")
+    def test_case_variant_under_not_yet_created_root(self) -> None:
+        """A differently cased path under an allowed root that does not exist yet is accepted."""
+
+        new_root = self.base / "NewRoot"
+        with mock.patch.dict(os.environ, {"ACESTEP_ALLOWED_PATHS": str(new_root)}):
+            spelled = os.path.join(str(self.base).lower(), "newroot", "Run1")
+            got = path_policy.resolve_allowed(spelled, must_exist=False, kind="dir", reject_link=True)
+        self.assertEqual(new_root / "Run1", got)
+        self.assertEqual(str(new_root / "Run1"), str(got))
+
+    def _short_name(self, path: Path) -> str:
+        """Return the 8.3 spelling of ``path`` via GetShortPathNameW, or skip if unavailable."""
+
+        import ctypes
+        from ctypes import wintypes
+
+        buf = ctypes.create_unicode_buffer(1024)
+        fn = ctypes.WinDLL("kernel32").GetShortPathNameW
+        fn.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+        fn.restype = wintypes.DWORD
+        if not fn(str(path), buf, len(buf)) or buf.value.lower() == str(path).lower():
+            self.skipTest("8.3 names not available on this volume")
+        return buf.value
+
+    @unittest.skipUnless(os.name == "nt", "8.3 names are Windows-only")
+    def test_short_name_leaf_is_not_a_link(self) -> None:
+        """An 8.3 alias of an ordinary directory is accepted under reject_link."""
+
+        target = self.root / "Long Export Destination"
+        target.mkdir()
+        short = self._short_name(target)
+        got = path_policy.resolve_allowed(short, must_exist=False, kind="dir", reject_link=True)
+        self.assertEqual(target, got)
+
+    @unittest.skipUnless(os.name == "nt", "8.3 names are Windows-only")
+    def test_short_name_root_spelling_is_accepted(self) -> None:
+        """A path whose root portion is spelled with 8.3 names is accepted under reject_link."""
+
+        short_root = self._short_name(self.root)
+        got = path_policy.resolve_allowed(
+            os.path.join(short_root, "new-export"), must_exist=False, kind="dir", reject_link=True
+        )
+        self.assertEqual(self.root / "new-export", got)
+
 if __name__ == "__main__":
     unittest.main()

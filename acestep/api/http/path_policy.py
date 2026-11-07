@@ -55,9 +55,20 @@ def _canonical(raw: str) -> Optional[str]:
         return None
 
 
-def _lexical(raw: str) -> str:
-    """Normalise ``raw`` without following links, case-folded for prefix comparison."""
-    return os.path.normpath(os.path.normcase(os.path.abspath(os.path.expanduser(raw))))
+def _typed_path_for_link_check(raw: str) -> str:
+    """Return ``raw`` with its parent canonicalised and its final component left as typed.
+
+    Links and short names in the parent are resolved; the final component is kept so
+    it can be inspected with ``lstat`` without following it.
+    """
+    lexical = os.path.normpath(os.path.abspath(os.path.expanduser(raw)))
+    parent, name = os.path.split(lexical)
+    if not name:
+        return lexical
+    try:
+        return os.path.join(os.path.realpath(parent), name)
+    except (OSError, RuntimeError, ValueError):
+        return lexical
 
 
 def _is_link(path: Path) -> bool:
@@ -65,7 +76,6 @@ def _is_link(path: Path) -> bool:
 
     The path is not resolved. A missing or unreadable path is not a link.
     """
-
     try:
         st = os.lstat(path)
     except (OSError, ValueError):
@@ -75,6 +85,17 @@ def _is_link(path: Path) -> bool:
     mount_point = getattr(stat, "IO_REPARSE_TAG_MOUNT_POINT", -1)
     return getattr(st, "st_reparse_tag", 0) == mount_point
 
+def _respell_root(canonical: str, prefix_sep: str) -> str:
+    """Return ``canonical`` with its leading root spelled as configured when they match.
+
+    On case-insensitive filesystems a root that does not exist yet cannot be
+    canonicalised, so the request may spell it differently. The match uses the
+    platform's ``os.path.normcase``; when it fails ``canonical`` is returned unchanged.
+    """
+    head = canonical[: len(prefix_sep)]
+    if os.path.normcase(head) == os.path.normcase(prefix_sep):
+        return prefix_sep + canonical[len(prefix_sep):]
+    return canonical
 
 def _has_reserved_name(path: str) -> bool:
     """Return True on Windows if any component of ``path`` names a reserved device."""
@@ -111,22 +132,6 @@ def allowed_roots() -> List[Path]:
         if resolved is not None and resolved not in roots:
             roots.append(resolved)
     return roots
-
-
-def _reject_link_before_resolution(raw: str, prefixes: List[str]) -> None:
-    """Raise if ``raw`` lexically sits under an allowed root and ends in a link.
-
-    This runs before symlinks are followed. A path outside every root is left for
-    the generic containment rejection, so the link check reveals nothing about it.
-    """
-
-    lexical = _lexical(raw)
-    for prefix in prefixes:
-        base = os.path.normcase(prefix).rstrip(os.sep) + os.sep
-        if lexical.startswith(base):
-            if _is_link(Path(lexical)):
-                raise HTTPException(status_code=400, detail=_LINK_REJECTED)
-            return
 
 
 def _check_kind(resolved: Path, must_exist: bool, kind: str) -> Path:
@@ -173,18 +178,26 @@ def resolve_allowed(
         raise HTTPException(status_code=400, detail="A valid path is required")
 
     prefixes = [str(root) for root in allowed_roots()]
-    if reject_link:
-        _reject_link_before_resolution(raw, prefixes)
-
     canonical = _canonical(raw)
     if canonical is None:
         raise HTTPException(status_code=400, detail="Invalid path")
-    if not allow_root and canonical in prefixes:
+    folded = os.path.normcase(canonical)
+    folded_roots = {os.path.normcase(prefix): prefix for prefix in prefixes}
+    if not allow_root and folded in folded_roots:
         raise HTTPException(status_code=400, detail=_REJECTED)
+    if folded in folded_roots:
+        return _check_kind(Path(folded_roots[folded]), must_exist, kind)
 
     for prefix in prefixes:
-        if canonical.startswith(prefix.rstrip(os.sep) + os.sep):
-            return _check_kind(Path(canonical), must_exist, kind)
-        if canonical == prefix:
-            return _check_kind(Path(prefix), must_exist, kind)
+        prefix_sep = prefix.rstrip(os.sep) + os.sep
+        spelled = _respell_root(canonical, prefix_sep)
+        if spelled.startswith(prefix_sep):
+            if reject_link:
+                typed = _respell_root(_typed_path_for_link_check(raw), prefix_sep)
+                if not typed.startswith(prefix_sep):
+                    # An alias from outside the roots is never a destructive destination.
+                    raise HTTPException(status_code=400, detail=_REJECTED)
+                if _is_link(Path(typed)):
+                    raise HTTPException(status_code=400, detail=_LINK_REJECTED)
+            return _check_kind(Path(spelled), must_exist, kind)
     raise HTTPException(status_code=400, detail=_REJECTED)
