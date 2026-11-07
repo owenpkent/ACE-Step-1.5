@@ -15,6 +15,7 @@ import gc
 import sys
 
 import torch
+from loguru import logger
 
 # Vanilla mode requires full ACE-Step installation.
 from acestep.training.configs import LoRAConfig, TrainingConfig
@@ -32,6 +33,32 @@ except ImportError:
     _LOKR_AVAILABLE = False
 from acestep.training_v2.gpu_utils import detect_gpu
 from acestep.training_v2.model_loader import load_decoder_for_training
+
+
+def _training_kwargs(adapter_type: str, args: argparse.Namespace) -> dict:
+    """Build keyword arguments for ``train_from_preprocessed``.
+
+    Only the LoRA trainer accepts ``resume_from``; the vanilla LoKR trainer
+    does not, so it is omitted (with a warning if the user requested it).
+
+    Args:
+        adapter_type: ``"lora"`` or ``"lokr"``.
+        args: Parsed CLI arguments with ``dataset_dir`` and ``resume_from``.
+
+    Returns:
+        Keyword arguments for the trainer's ``train_from_preprocessed``.
+    """
+    kwargs = {"tensor_dir": args.dataset_dir}
+    resume_from = getattr(args, "resume_from", None)
+    if adapter_type == "lokr":
+        if resume_from:
+            logger.warning(
+                "The vanilla LoKR trainer does not support resuming; "
+                "ignoring --resume-from and starting fresh."
+            )
+    else:
+        kwargs["resume_from"] = resume_from
+    return kwargs
 
 
 def _cleanup_gpu() -> None:
@@ -223,8 +250,7 @@ def run_vanilla(args: argparse.Namespace) -> int:
 
             stats = track_training(
                 training_iter=trainer.train_from_preprocessed(
-                    tensor_dir=args.dataset_dir,
-                    resume_from=args.resume_from,
+                    **_training_kwargs(adapter_type, args),
                 ),
                 max_epochs=args.epochs,
                 device=gpu.device,
