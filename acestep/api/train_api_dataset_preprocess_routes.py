@@ -14,6 +14,7 @@ from acestep.api.train_api_dataset_models import PreprocessDatasetRequest
 from acestep.api.train_api_runtime import RuntimeComponentManager
 from acestep.handler import AceStepHandler
 from acestep.llm_inference import LLMHandler
+from acestep.api.http.path_policy import resolve_allowed
 
 
 def register_training_dataset_preprocess_routes(
@@ -34,6 +35,7 @@ def register_training_dataset_preprocess_routes(
         handler: AceStepHandler = app.state.handler
         if handler is None or handler.model is None:
             raise HTTPException(status_code=500, detail="Model not initialized")
+        output_dir = str(resolve_allowed(request.output_dir, must_exist=False, kind="dir"))
 
         preprocess_notes = []
         llm: LLMHandler = app.state.llm_handler
@@ -45,7 +47,7 @@ def register_training_dataset_preprocess_routes(
             output_paths, status = await asyncio.to_thread(
                 builder.preprocess_to_tensors,
                 dit_handler=handler,
-                output_dir=request.output_dir.strip(),
+                output_dir=output_dir,
                 skip_existing=request.skip_existing,
                 progress_callback=None,
             )
@@ -61,7 +63,7 @@ def register_training_dataset_preprocess_routes(
                 return wrap_response(
                     {
                         "message": status,
-                        "output_dir": request.output_dir,
+                        "output_dir": output_dir,
                         "num_tensors": len(output_paths),
                     }
                 )
@@ -82,6 +84,7 @@ def register_training_dataset_preprocess_routes(
         handler: AceStepHandler = app.state.handler
         if handler is None or handler.model is None:
             raise HTTPException(status_code=500, detail="Model not initialized")
+        output_dir = str(resolve_allowed(request.output_dir, must_exist=False, kind="dir"))
 
         task_id = str(uuid4())
 
@@ -129,7 +132,7 @@ def register_training_dataset_preprocess_routes(
 
                 output_paths, status = builder.preprocess_to_tensors(
                     dit_handler=handler,
-                    output_dir=request.output_dir.strip(),
+                    output_dir=output_dir,
                     skip_existing=request.skip_existing,
                     progress_callback=progress_callback,
                 )
@@ -149,7 +152,7 @@ def register_training_dataset_preprocess_routes(
                         task.current = task.total
                         task.result = {
                             "message": status,
-                            "output_dir": request.output_dir,
+                            "output_dir": output_dir,
                             "num_tensors": len(output_paths),
                         }
             except Exception as exc:

@@ -15,6 +15,7 @@ from acestep.api.train_api_dataset_models import AutoLabelRequest, _serialize_sa
 from acestep.api.train_api_runtime import RuntimeComponentManager
 from acestep.handler import AceStepHandler
 from acestep.llm_inference import LLMHandler
+from acestep.api.http.path_policy import resolve_allowed
 
 
 def register_training_dataset_auto_label_async_route(
@@ -61,7 +62,7 @@ def register_training_dataset_auto_label_async_route(
                 }
             )
 
-        resolved_save_path = (request.save_path.strip() if request.save_path else None) or getattr(
+        resolved_save_path = (str(resolve_allowed(request.save_path, must_exist=False, kind="file")) if request.save_path else None) or getattr(
             app.state,
             "dataset_json_path",
             None,

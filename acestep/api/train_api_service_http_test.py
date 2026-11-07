@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from typing import Any, Dict, Optional
+import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from fastapi import FastAPI, Header, HTTPException
@@ -119,15 +122,47 @@ class TrainingApiServiceHttpTests(unittest.TestCase):
         """POST /v1/training/load_tensor_info should return HTTP 400 for missing directory."""
 
         client, _calls, _app = self._build_client()
-        with mock.patch("acestep.api.train_api_service.os.path.exists", return_value=False):
-            response = client.post(
-                "/v1/training/load_tensor_info",
-                json={"tensor_dir": "missing-dir"},
-                headers={"Authorization": "Bearer test-token"},
-            )
+        response = client.post(
+            "/v1/training/load_tensor_info",
+            json={"tensor_dir": "missing-dir"},
+            headers={"Authorization": "Bearer test-token"},
+        )
 
         self.assertEqual(400, response.status_code)
-        self.assertIn("Directory not found", response.json()["detail"])
+        self.assertIn("Path not found", response.json()["detail"])
+
+    def test_load_tensor_info_rejects_path_outside_allowed_roots(self):
+        """POST /v1/training/load_tensor_info should return 400 for a directory outside allowed roots."""
+
+        client, _calls, _app = self._build_client()
+        with tempfile.TemporaryDirectory() as outside:
+            (Path(outside) / "a.pt").write_bytes(b"x")
+            with mock.patch.dict(os.environ, {"ACESTEP_ALLOWED_PATHS": "", "ACESTEP_TMPDIR": ""}):
+                with mock.patch("acestep.api.http.path_policy._PROJECT_ROOT", Path.cwd() / "nonexistent-root"), \
+                        mock.patch("acestep.api.http.path_policy._STARTUP_CWD", Path.cwd() / "nonexistent-root"):
+                    response = client.post(
+                        "/v1/training/load_tensor_info",
+                        json={"tensor_dir": outside},
+                        headers={"Authorization": "Bearer test-token"},
+                    )
+        self.assertEqual(400, response.status_code)
+        self.assertIn("allowed directory", response.json()["detail"])
+        self.assertNotIn(outside, response.json()["detail"])
+
+    def test_load_tensor_info_accepts_path_inside_allowed_roots(self):
+        """POST /v1/training/load_tensor_info should proceed for a directory under an allowed root."""
+
+        client, _calls, _app = self._build_client()
+        with tempfile.TemporaryDirectory() as inside:
+            (Path(inside) / "a.pt").write_bytes(b"x")
+            with mock.patch.dict(os.environ, {"ACESTEP_ALLOWED_PATHS": inside}):
+                response = client.post(
+                    "/v1/training/load_tensor_info",
+                    json={"tensor_dir": inside},
+                    headers={"Authorization": "Bearer test-token"},
+                )
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(1, response.json()["data"]["num_samples"])
 
 
 if __name__ == "__main__":

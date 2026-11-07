@@ -13,6 +13,7 @@ from acestep.api.train_api_dataset_models import AutoLabelRequest, _serialize_sa
 from acestep.api.train_api_runtime import RuntimeComponentManager
 from acestep.handler import AceStepHandler
 from acestep.llm_inference import LLMHandler
+from acestep.api.http.path_policy import resolve_allowed
 
 
 def register_training_dataset_auto_label_sync_route(
@@ -42,12 +43,16 @@ def register_training_dataset_auto_label_sync_route(
         if llm is None or not llm.llm_initialized:
             raise HTTPException(status_code=500, detail="LLM not initialized")
 
+        validated_save_path = (
+            str(resolve_allowed(request.save_path, must_exist=False, kind="file")) if request.save_path else None
+        )
+
         mgr = RuntimeComponentManager(handler=handler, llm=llm, app_state=app.state)
         mgr.offload_decoder_to_cpu()
 
         try:
             with temporary_llm_model(app, llm, request.lm_model_path):
-                resolved_save_path = (request.save_path.strip() if request.save_path else None) or getattr(
+                resolved_save_path = (validated_save_path) or getattr(
                     app.state,
                     "dataset_json_path",
                     None,

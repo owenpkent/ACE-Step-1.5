@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 
+from acestep.api.http.path_policy import resolve_allowed
 from acestep.api.train_api_dataset_models import SaveDatasetRequest, UpdateSampleRequest, _serialize_samples
 
 
@@ -23,6 +24,7 @@ def register_training_dataset_sample_routes(
         builder = app.state.dataset_builder
         if builder is None:
             raise HTTPException(status_code=400, detail="No dataset to save")
+        save_path = str(resolve_allowed(request.save_path, must_exist=False, kind="file"))
 
         try:
             if request.custom_tag is not None:
@@ -34,10 +36,10 @@ def register_training_dataset_sample_routes(
             if request.genre_ratio is not None:
                 builder.metadata.genre_ratio = request.genre_ratio
 
-            status = builder.save_dataset(request.save_path.strip(), request.dataset_name)
+            status = builder.save_dataset(save_path, request.dataset_name)
 
             if status.startswith("✅"):
-                app.state.dataset_json_path = request.save_path.strip()
+                app.state.dataset_json_path = save_path
 
             if status.startswith("✅"):
                 return wrap_response({"message": status, "save_path": request.save_path})

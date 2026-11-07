@@ -735,6 +735,7 @@ The API server can be configured using environment variables:
 | `ACESTEP_API_HOST` | `127.0.0.1` | Server bind host |
 | `ACESTEP_API_PORT` | `8001` | Server bind port |
 | `ACESTEP_API_KEY` | (empty) | API authentication key (empty disables auth) |
+| `ACESTEP_ALLOWED_PATHS` | (empty) | Extra directories (separated by `;` on Windows, `:` elsewhere) that training, dataset and LoRA routes may read or write, in addition to the project directory |
 | `ACESTEP_API_WORKERS` | `1` | API worker thread count |
 
 ### Model Configuration

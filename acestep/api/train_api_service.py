@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, Optional
 from fastapi import Depends, FastAPI, HTTPException
 from loguru import logger
 
+from acestep.api.http.path_policy import resolve_allowed
 from acestep.api.train_api_dataset_service import register_training_dataset_routes
 from acestep.api.train_api_lokr_start_route import register_lokr_training_start_route
 from acestep.api.train_api_lora_start_route import register_lora_training_start_route
@@ -113,10 +114,7 @@ def register_training_api_routes(
         tensor_dir = str(request.get("tensor_dir", "")).strip()
         if not tensor_dir:
             raise HTTPException(status_code=400, detail="Please enter a tensor directory path")
-        if not os.path.exists(tensor_dir):
-            raise HTTPException(status_code=400, detail=f"Directory not found: {tensor_dir}")
-        if not os.path.isdir(tensor_dir):
-            raise HTTPException(status_code=400, detail=f"Not a directory: {tensor_dir}")
+        tensor_dir = str(resolve_allowed(tensor_dir, must_exist=True, kind="dir"))
 
         manifest_path = os.path.join(tensor_dir, "manifest.json")
         if os.path.exists(manifest_path):
@@ -159,8 +157,11 @@ def register_training_api_routes(
     async def export_lora(request: ExportLoRARequest, _: None = Depends(verify_api_key)):
         """Export trained LoRA/LoKr weights."""
 
-        final_dir = os.path.join(request.lora_output_dir, "final")
-        checkpoint_dir = os.path.join(request.lora_output_dir, "checkpoints")
+        lora_output_dir = str(resolve_allowed(request.lora_output_dir, must_exist=True, kind="dir"))
+        # export_path is removed with rmtree below, so it may never be an allowed root itself.
+        export_path = str(resolve_allowed(request.export_path, must_exist=False, kind="dir", allow_root=False))
+        final_dir = os.path.join(lora_output_dir, "final")
+        checkpoint_dir = os.path.join(lora_output_dir, "checkpoints")
         if os.path.exists(final_dir):
             source_path = final_dir
         elif os.path.exists(checkpoint_dir):
@@ -170,10 +171,9 @@ def register_training_api_routes(
             checkpoints.sort(key=lambda x: int(x.split("_")[1]))
             source_path = os.path.join(checkpoint_dir, checkpoints[-1])
         else:
-            raise HTTPException(status_code=404, detail=f"No trained model found in {request.lora_output_dir}")
+            raise HTTPException(status_code=404, detail="No trained model found in the given output directory")
 
         try:
-            export_path = request.export_path.strip()
             os.makedirs(os.path.dirname(export_path) if os.path.dirname(export_path) else ".", exist_ok=True)
             if os.path.exists(export_path):
                 shutil.rmtree(export_path)
