@@ -204,6 +204,14 @@ on either build. #1369 ported as fork PR 14 (`port/1369-windows-rss-readout`): `
 2. `fix/lokr-key-mismatch-warning` from `main`.
 3. `fix/skip-lm-check-without-llm` from `main`.
 
+Status 2026-11-07: done. Worktrees `W:/dev/ace-step-wt/{lokr,lm-check,body-token}`.
+
+| Fix | Fork PR | Notes |
+|---|---|---|
+| LoKR key mismatch | 16 | LyCORIS `load_weights` returns a dict (`"missing keys"`, `"unexpected keys"`), not torch `_IncompatibleKeys`. New `lora/lokr_load_check.py`; `add_lora` already converts the raise into the `❌` message |
+| LM-aware download | 17 | New `download_main_component` fetches one folder via `_smart_download(allow_patterns=...)`, verified live against HuggingFace. `initialize_service(require_lm=True)` added; API paths pass it, Gradio pipeline left at default |
+| Body `ai_token` | 18, base `fix/api-auth-openrouter-routes` | Decision taken: opt-in `ACESTEP_ALLOW_BODY_API_TOKEN`, off by default; body token ignored with a warning and the header check runs as before. Retarget to `main` after fork PR 1 merges |
+
 ### Phase 4: upstream follow-up
 
 - Once the fork PRs merge, consider offering the fork-authored fixes upstream. Comment on
@@ -216,4 +224,4 @@ on either build. #1369 ported as fork PR 14 (`port/1369-windows-rss-readout`): `
 - Each port has its own fork PR with the upstream PR linked in the description.
 - The focused tests for each touched module pass.
 - #1368 has a recorded memory measurement on Windows.
-- The `ai_token` decision is made and recorded in fork PR 8.
+- The `ai_token` decision is made and recorded in fork PR 8. (Done: opt-in flag, see Phase 3.)
