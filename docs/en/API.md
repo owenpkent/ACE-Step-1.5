@@ -39,7 +39,9 @@ The API supports optional API key authentication. When enabled, a valid key must
 
 Two authentication methods are supported:
 
-**Method A: ai_token in request body**
+**Method A: ai_token in request body (disabled by default)**
+
+Request bodies can leak into access logs, proxies and crash dumps, so a body `ai_token` is ignored unless you set `ACESTEP_ALLOW_BODY_API_TOKEN=true` on the server. Prefer Method B.
 
 ```json
 {

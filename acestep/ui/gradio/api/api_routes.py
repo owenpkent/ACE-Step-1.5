@@ -15,6 +15,14 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from loguru import logger
+
+from acestep.api.http.auth import (
+    MISSING_HEADER_DETAIL,
+    body_api_token_allowed,
+    warn_body_token_enabled_once,
+    warn_body_token_ignored,
+)
 
 # Global results directory inside project root
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -52,19 +60,23 @@ def _wrap_response(data: Any, code: int = 200, error: Optional[str] = None) -> D
 
 def verify_token_from_request(body: dict, authorization: Optional[str] = None) -> Optional[str]:
     """
-    Verify API key from request body (ai_token) or Authorization header.
+    Verify API key from the Authorization header, or body ai_token if enabled.
+    Body ai_token is ignored unless ACESTEP_ALLOW_BODY_API_TOKEN is truthy.
     Returns the token if valid, None if no auth required.
     """
     key = _get_api_key()
     if key is None:
         return None  # No auth required
 
-    # Try ai_token from body first
+    # Body ai_token is only honoured when explicitly enabled (deprecated)
     ai_token = body.get("ai_token") if body else None
     if ai_token:
-        if hmac.compare_digest(str(ai_token).encode("utf-8"), key.encode("utf-8")):
-            return ai_token
-        raise HTTPException(status_code=401, detail="Invalid ai_token")
+        if body_api_token_allowed():
+            warn_body_token_enabled_once()
+            if hmac.compare_digest(str(ai_token).encode("utf-8"), key.encode("utf-8")):
+                return ai_token
+            raise HTTPException(status_code=401, detail="Invalid ai_token")
+        warn_body_token_ignored()
 
     # Fallback to Authorization header
     if authorization:
@@ -77,7 +89,7 @@ def verify_token_from_request(body: dict, authorization: Optional[str] = None) -
         raise HTTPException(status_code=401, detail="Invalid API key")
 
     # No token provided but auth is required
-    raise HTTPException(status_code=401, detail="Missing ai_token or Authorization header")
+    raise HTTPException(status_code=401, detail=MISSING_HEADER_DETAIL)
 
 
 async def verify_api_key(authorization: Optional[str] = Header(None)):
