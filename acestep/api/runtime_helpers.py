@@ -49,6 +49,8 @@ def start_tensorboard(
     try:
         tensorboard_port = int(os.getenv("TENSORBOARD_PORT", "6006"))
         stop_tensorboard_fn(app)
+        # Follow the API server bind host (loopback unless explicitly exposed).
+        bind_host = (os.environ.get("ACESTEP_API_HOST") or "").strip() or "127.0.0.1"
 
         if sys.prefix != sys.base_prefix:
             tensorboard_cmd = os.path.join(sys.prefix, "Scripts", "tensorboard.exe")
@@ -66,12 +68,14 @@ def start_tensorboard(
                 logdir,
                 "--port",
                 str(tensorboard_port),
-                "--bind_all",
+                "--host",
+                bind_host,
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        return f"http://localhost:{tensorboard_port}"
+        url_host = "localhost" if bind_host in ("127.0.0.1", "0.0.0.0", "::", "::1") else bind_host
+        return f"http://{url_host}:{tensorboard_port}"
     except Exception:
         return None
 

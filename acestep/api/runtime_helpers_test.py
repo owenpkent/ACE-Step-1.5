@@ -52,6 +52,33 @@ class RuntimeHelpersTests(unittest.TestCase):
         self.assertEqual([app], stop_calls)
         self.assertIs(app.state.tensorboard_process, fake_proc)
 
+    def test_start_tensorboard_binds_loopback_not_all_interfaces(self):
+        """TensorBoard argv must use --host (loopback default) and never --bind_all."""
+
+        app = SimpleNamespace(state=SimpleNamespace(tensorboard_process=None))
+        env = {k: v for k, v in os.environ.items() if k != "ACESTEP_API_HOST"}
+        with mock.patch.dict(os.environ, env, clear=True), mock.patch(
+            "acestep.api.runtime_helpers.subprocess.Popen", return_value=mock.Mock()
+        ) as popen:
+            url = start_tensorboard(app, logdir="logs", stop_tensorboard_fn=lambda a: None)
+        argv = popen.call_args.args[0]
+        self.assertIsInstance(argv, list)
+        self.assertNotIn("--bind_all", argv)
+        self.assertEqual("127.0.0.1", argv[argv.index("--host") + 1])
+        self.assertTrue(url.startswith("http://localhost:"))
+
+    def test_start_tensorboard_follows_configured_host(self):
+        """A non-loopback ACESTEP_API_HOST is passed through to --host and the URL."""
+
+        app = SimpleNamespace(state=SimpleNamespace(tensorboard_process=None))
+        with mock.patch.dict(os.environ, {"ACESTEP_API_HOST": "192.168.1.5"}), mock.patch(
+            "acestep.api.runtime_helpers.subprocess.Popen", return_value=mock.Mock()
+        ) as popen:
+            url = start_tensorboard(app, logdir="logs", stop_tensorboard_fn=lambda a: None)
+        argv = popen.call_args.args[0]
+        self.assertEqual("192.168.1.5", argv[argv.index("--host") + 1])
+        self.assertTrue(url.startswith("http://192.168.1.5:"))
+
     def test_start_tensorboard_returns_none_on_failure(self):
         """Start helper should return None when startup raises an exception."""
 

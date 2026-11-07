@@ -250,7 +250,7 @@ SHARE="--share"
 |--------|:---------:|:----------:|-------------|
 | `LANGUAGE` | ✅ | — | UI language: `en`, `zh`, `he`, `ja` |
 | `PORT` | ✅ | ✅ | Server port (default: 7860 / 8001) |
-| `SERVER_NAME` / `HOST` | ✅ | ✅ | Bind address (`127.0.0.1` or `0.0.0.0`) |
+| `SERVER_NAME` / `HOST` | ✅ | ✅ | Bind address (`127.0.0.1` or `0.0.0.0`). `run_api_server.sh` reads `ACESTEP_API_HOST` (default `127.0.0.1`; set `0.0.0.0` for LAN access) |
 | `CHECK_UPDATE` | ✅ | ✅ | Startup update check (`true` / `false`) |
 | `CONFIG_PATH` | ✅ | — | DiT model (`acestep-v15-turbo`, etc.) |
 | `LM_MODEL_PATH` | ✅ | ✅ | LM model (`acestep-5Hz-lm-0.6B` / `1.7B` / `4B`) |
