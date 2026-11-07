@@ -235,6 +235,28 @@ class TrainingApiServiceHttpTests(unittest.TestCase):
             cp.assert_not_called()
             self.assertTrue((target / "keep.txt").exists())
 
+    @unittest.skipUnless(os.name == "nt", "8.3 names are Windows-only")
+    def test_export_to_short_name_destination_succeeds(self):
+        """POST /v1/training/export accepts an ordinary directory spelled with its 8.3 alias."""
+
+        import ctypes
+        from ctypes import wintypes
+
+        client, _calls, _app = self._build_client()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._export_fixture(tmp)
+            export = root / "Long Export Destination"
+            export.mkdir()
+            buf = ctypes.create_unicode_buffer(1024)
+            fn = ctypes.WinDLL("kernel32").GetShortPathNameW
+            fn.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+            fn.restype = wintypes.DWORD
+            if not fn(str(export), buf, len(buf)) or buf.value.lower() == str(export).lower():
+                self.skipTest("8.3 names not available on this volume")
+            response, rm, cp = self._post_export(client, root, Path(buf.value))
+            self.assertEqual(200, response.status_code, response.text)
+            rm.assert_called_once_with(str(export))
+            cp.assert_called_once_with(str(root / "lora" / "final"), str(export))
     def test_export_to_plain_new_dir_succeeds(self):
         """POST /v1/training/export copies to a plain non-existent directory."""
 

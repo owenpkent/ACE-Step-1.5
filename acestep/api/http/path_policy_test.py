@@ -258,6 +258,39 @@ class PathPolicyTests(unittest.TestCase):
         self.assertEqual(new_root / "Run1", got)
         self.assertEqual(str(new_root / "Run1"), str(got))
 
+    def _short_name(self, path: Path) -> str:
+        """Return the 8.3 spelling of ``path`` via GetShortPathNameW, or skip if unavailable."""
+
+        import ctypes
+        from ctypes import wintypes
+
+        buf = ctypes.create_unicode_buffer(1024)
+        fn = ctypes.WinDLL("kernel32").GetShortPathNameW
+        fn.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+        fn.restype = wintypes.DWORD
+        if not fn(str(path), buf, len(buf)) or buf.value.lower() == str(path).lower():
+            self.skipTest("8.3 names not available on this volume")
+        return buf.value
+
+    @unittest.skipUnless(os.name == "nt", "8.3 names are Windows-only")
+    def test_short_name_leaf_is_not_a_link(self) -> None:
+        """An 8.3 alias of an ordinary directory is accepted under reject_link."""
+
+        target = self.root / "Long Export Destination"
+        target.mkdir()
+        short = self._short_name(target)
+        got = path_policy.resolve_allowed(short, must_exist=False, kind="dir", reject_link=True)
+        self.assertEqual(target, got)
+
+    @unittest.skipUnless(os.name == "nt", "8.3 names are Windows-only")
+    def test_short_name_root_spelling_is_accepted(self) -> None:
+        """A path whose root portion is spelled with 8.3 names is accepted under reject_link."""
+
+        short_root = self._short_name(self.root)
+        got = path_policy.resolve_allowed(
+            os.path.join(short_root, "new-export"), must_exist=False, kind="dir", reject_link=True
+        )
+        self.assertEqual(self.root / "new-export", got)
 
 if __name__ == "__main__":
     unittest.main()
