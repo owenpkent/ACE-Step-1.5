@@ -53,7 +53,7 @@ services:
     # ---- Persistent volumes ----
     volumes:
       - ./checkpoints:/app/checkpoints
-      - hf_cache:/root/.cache/huggingface
+      - hf_cache:/home/acestep/.cache/huggingface
       - ./gradio_outputs:/app/gradio_outputs
       - ./output:/app/output
 

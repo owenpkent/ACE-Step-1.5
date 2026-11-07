@@ -92,7 +92,7 @@ services:
       - ./checkpoints:/app/checkpoints
       # HuggingFace cache — avoids re-downloading models if the checkpoint
       # directory is empty and the downloader fetches from HF Hub.
-      - hf_cache:/root/.cache/huggingface
+      - hf_cache:/home/acestep/.cache/huggingface
       # Generated audio output
       - ./gradio_outputs:/app/gradio_outputs
       # LoRA training output — persists trained adapters across rebuilds
