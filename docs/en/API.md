@@ -860,6 +860,8 @@ curl -X POST http://localhost:8001/v1/training/start_lokr \
 }
 ```
 
+For `500` responses the message is generic (for example `"Export failed; see server log"`). The exception itself is written to the server log, not returned to the client, so responses never carry server paths or internals.
+
 ---
 
 ## Best Practices

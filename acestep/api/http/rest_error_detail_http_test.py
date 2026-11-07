@@ -162,5 +162,18 @@ class SampleFormatErrorDetailTests(unittest.TestCase):
             lg.exception.assert_called_once()
 
 
+    def test_stored_llm_init_error_is_not_echoed(self):
+        """A recorded LM init failure yields a generic 500 and is logged."""
+        client = self._client()
+        client.app.state._llm_initialized = False
+        client.app.state._llm_init_error = _SECRET
+        for path, body in (("/format_input", {"prompt": "x"}), ("/v1/create_sample", {"query": "x"})):
+            with self.subTest(path=path),                     mock.patch.object(sample_format_routes, "logger") as lg:
+                resp = client.post(path, json=body)
+            self.assertEqual(500, resp.status_code)
+            self.assertNotIn(_SECRET, resp.text)
+            self.assertEqual("LLM init failed; see server log", resp.json()["detail"])
+            lg.error.assert_called_once()
+
 if __name__ == "__main__":
     unittest.main()

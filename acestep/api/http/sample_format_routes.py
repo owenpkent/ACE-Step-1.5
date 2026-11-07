@@ -67,7 +67,8 @@ def register_sample_format_routes(
         with llm_lock:
             if not getattr(app.state, "_llm_initialized", False):
                 if getattr(app.state, "_llm_init_error", None):
-                    raise HTTPException(status_code=500, detail=f"LLM init failed: {app.state._llm_init_error}")
+                    logger.error("LLM init failed: {}", app.state._llm_init_error)
+                    raise HTTPException(status_code=500, detail="LLM init failed; see server log")
                 if getattr(app.state, "_llm_lazy_load_disabled", False):
                     raise HTTPException(
                         status_code=503,
@@ -190,7 +191,8 @@ def register_sample_format_routes(
         with llm_lock:
             if not getattr(app.state, "_llm_initialized", False):
                 if getattr(app.state, "_llm_init_error", None):
-                    raise HTTPException(status_code=500, detail=f"LLM init failed: {app.state._llm_init_error}")
+                    logger.error("LLM init failed: {}", app.state._llm_init_error)
+                    raise HTTPException(status_code=500, detail="LLM init failed; see server log")
                 if getattr(app.state, "_llm_lazy_load_disabled", False):
                     raise HTTPException(
                         status_code=503,
