@@ -80,10 +80,12 @@ services:
       - TOKENIZERS_PARALLELISM=false
 
     # ---- Ports ----
-    # Gradio UI on 7860, REST API on 8001
+    # Gradio UI on 7860, REST API on 8001, published on the host's loopback
+    # only. To reach them from other machines, set PUBLISH_HOST=0.0.0.0
+    # (and set ACESTEP_API_KEY).
     ports:
-      - "${GRADIO_PORT:-7860}:7860"
-      - "${API_PORT:-8001}:8001"
+      - "${PUBLISH_HOST:-127.0.0.1}:${GRADIO_PORT:-7860}:7860"
+      - "${PUBLISH_HOST:-127.0.0.1}:${API_PORT:-8001}:8001"
 
     # ---- Persistent volumes ----
     volumes:

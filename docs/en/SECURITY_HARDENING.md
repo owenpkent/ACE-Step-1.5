@@ -111,13 +111,7 @@ mkdir -p checkpoints gradio_outputs output
 sudo chown -R 1000:1000 checkpoints gradio_outputs output
 ```
 
-`docker-compose.yml` publishes ports 7860 and 8001 on every host interface. To keep them on the local machine, change its `ports` entries to:
-
-```yaml
-ports:
-  - "127.0.0.1:${GRADIO_PORT:-7860}:7860"
-  - "127.0.0.1:${API_PORT:-8001}:8001"
-```
+`docker-compose.yml` and `docker-compose.jetson.yml` publish ports 7860 and 8001 on the host's `127.0.0.1` only. To reach the container from other machines, set `PUBLISH_HOST=0.0.0.0` (for example `PUBLISH_HOST=0.0.0.0 docker compose up`), and set `ACESTEP_API_KEY` first.
 
 Do not work around this with `docker run --user <other uid>`. The image's cache directories (`/app/.cache`, `/home/acestep/.cache`, and the fixed `UV_CACHE_DIR` and `HF_HOME` under it) belong to uid 1000, so another uid fails at startup when the API creates its temp directories. Setting `HOME` does not change those paths.
 
