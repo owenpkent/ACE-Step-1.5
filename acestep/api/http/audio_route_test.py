@@ -1,10 +1,13 @@
 """Unit tests for audio route registration."""
 
 import asyncio
+import os
+import tempfile
 import unittest
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.routing import APIRoute
 
 from acestep.api.http.audio_route import register_audio_route
@@ -69,6 +72,54 @@ class AudioRouteTests(unittest.TestCase):
         with self.assertRaises(HTTPException) as ctx:
             asyncio.run(endpoint(path=str(Path.cwd()), request=request, _=None))
         self.assertEqual(404, ctx.exception.status_code)
+
+    def _endpoint_for(self, allowed_dir: Path):
+        """Return the audio endpoint and a fake request bound to ``allowed_dir``."""
+
+        app = FastAPI()
+        app.state.temp_audio_dir = str(allowed_dir)
+        register_audio_route(app=app, verify_api_key=_verify_api_key)
+        return _get_endpoint(app, "/v1/audio", "GET"), type("Req", (), {"app": app})()
+
+    def test_rejects_dot_dot_traversal_out_of_allowed_dir(self):
+        """A path that climbs out of the allowed dir with ``..`` should get HTTP 403."""
+
+        with tempfile.TemporaryDirectory() as root:
+            allowed = Path(root) / "audio"
+            allowed.mkdir()
+            (Path(root) / "secret.mp3").write_bytes(b"x")
+            endpoint, request = self._endpoint_for(allowed)
+            with self.assertRaises(HTTPException) as ctx:
+                asyncio.run(endpoint(path=str(allowed / ".." / "secret.mp3"), request=request, _=None))
+        self.assertEqual(403, ctx.exception.status_code)
+
+    def test_rejects_sibling_dir_sharing_name_prefix(self):
+        """``audio_evil/x.mp3`` must not pass as inside ``audio`` by string prefix."""
+
+        with tempfile.TemporaryDirectory() as root:
+            allowed = Path(root) / "audio"
+            allowed.mkdir()
+            sibling = Path(root) / "audio_evil"
+            sibling.mkdir()
+            (sibling / "x.mp3").write_bytes(b"x")
+            endpoint, request = self._endpoint_for(allowed)
+            with self.assertRaises(HTTPException) as ctx:
+                asyncio.run(endpoint(path=str(sibling / "x.mp3"), request=request, _=None))
+        self.assertEqual(403, ctx.exception.status_code)
+
+    def test_serves_file_inside_allowed_dir_with_media_type(self):
+        """A file inside the allowed dir should be served with its extension's media type."""
+
+        with tempfile.TemporaryDirectory() as root:
+            allowed = Path(root) / "audio"
+            allowed.mkdir()
+            target = allowed / "song.FLAC"
+            target.write_bytes(b"x")
+            endpoint, request = self._endpoint_for(allowed)
+            response = asyncio.run(endpoint(path=str(target), request=request, _=None))
+        self.assertIsInstance(response, FileResponse)
+        self.assertEqual("audio/flac", response.media_type)
+        self.assertEqual(os.path.realpath(target), response.path)
 
 
 if __name__ == "__main__":
