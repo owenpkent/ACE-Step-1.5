@@ -21,6 +21,8 @@ import threading
 import time
 import webbrowser
 
+from acestep.launcher_console import hold_window_open
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 HOST = "127.0.0.1"
 UI_PORT = 7860
@@ -32,9 +34,8 @@ UI_DEFAULTS = [("--config_path", "ACESTEP_CONFIG_PATH", "acestep-v15-turbo"),
                ("--init_service", None, "true")]
 # Model download and init can take many minutes on a first run.
 BROWSER_WAIT_S = 1800.0
-# A human shell sharing this console means the output survives our exit: no need to hold.
-_SHELLS = frozenset({"cmd.exe", "powershell.exe", "pwsh.exe", "bash.exe", "sh.exe",
-                     "zsh.exe", "wt.exe", "windowsterminal.exe", "code.exe"})
+# Written after a sync succeeds: a failed sync can leave a partial .venv behind.
+SYNC_STAMP = os.path.join(ROOT, ".venv", ".run-py-synced")
 
 
 def find_uv() -> str | None:
@@ -68,26 +69,41 @@ def build_command(uv: str, api: bool, port: int | None, extra: list[str],
                   env: dict[str, str] | None = None) -> list[str]:
     """Build the ``uv run`` argv; ``env`` picks the models, ``extra`` is appended as is."""
     env = env or {}
+    given = {arg.split("=", 1)[0] for arg in extra}
+    port_args = [] if "--port" in given else ["--port", str(port or (API_PORT if api else UI_PORT))]
     if api:
-        app = ["acestep-api", "--host", HOST, "--port", str(port or API_PORT)]
+        app = ["acestep-api", "--host", HOST, *port_args]
     else:
-        app = ["acestep", "--port", str(port or UI_PORT), "--server-name", HOST]
-        given = {arg.split("=", 1)[0] for arg in extra}
+        app = ["acestep", *port_args, "--server-name", HOST]
         for flag, key, fallback in UI_DEFAULTS:
             if flag not in given:
                 app += [flag, env.get(key) or fallback]
     return [uv, "run", "--no-sync", *app, *extra]
 
 
+def passthrough_port(extra: list[str]) -> int | None:
+    """Return the last ``--port N`` or ``--port=N`` in ``extra``, the one the app will use."""
+    port = None
+    for i, arg in enumerate(extra):
+        value = arg[7:] if arg.startswith("--port=") else (
+            extra[i + 1] if arg == "--port" and i + 1 < len(extra) else None)
+        if value is not None and value.isdigit():
+            port = int(value)
+    return port
+
+
 def ensure_venv(uv: str) -> bool:
-    """Create the environment with ``uv sync`` (retrying offline) when .venv is missing."""
-    if os.path.isdir(os.path.join(ROOT, ".venv")):
+    """Run ``uv sync`` (retrying offline) until one succeeds; SYNC_STAMP records success."""
+    if os.path.isfile(SYNC_STAMP):
         return True
-    print("First run: setting up the environment with uv sync (takes a few minutes)...")
-    if subprocess.call([uv, "sync"], cwd=ROOT) == 0:
-        return True
-    print("Online sync failed, retrying offline...")
-    return subprocess.call([uv, "sync", "--offline"], cwd=ROOT) == 0
+    print("Setting up the environment with uv sync (the first run takes a few minutes)...")
+    if subprocess.call([uv, "sync"], cwd=ROOT) != 0:
+        print("Online sync failed, retrying offline...")
+        if subprocess.call([uv, "sync", "--offline"], cwd=ROOT) != 0:
+            return False
+    with open(SYNC_STAMP, "w", encoding="utf-8"):
+        pass
+    return True
 
 
 def port_open(port: int) -> bool:
@@ -107,44 +123,6 @@ def open_when_ready(url: str, port: int, proc: subprocess.Popen) -> None:
             webbrowser.open(url)
             return
         time.sleep(1.0)
-
-
-def console_is_ours() -> bool:
-    """True when the console exists only for us (double-clicked), so it closes on exit."""
-    if os.name != "nt":
-        return False
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        pids = (wintypes.DWORD * 64)()
-        count = kernel32.GetConsoleProcessList(pids, len(pids))
-        for pid in pids[:min(count, len(pids))]:
-            handle = kernel32.OpenProcess(0x1000, False, pid)  # QUERY_LIMITED_INFORMATION
-            if not handle:  # a process we may not open is not a shell of ours
-                continue
-            try:
-                name, size = ctypes.create_unicode_buffer(32768), wintypes.DWORD(32768)
-                if kernel32.QueryFullProcessImageNameW(handle, 0, name, ctypes.byref(size)):
-                    if os.path.basename(name.value).lower() in _SHELLS:
-                        return False
-            finally:
-                kernel32.CloseHandle(handle)
-        return count > 0
-    except (OSError, AttributeError):
-        return False
-
-
-def hold_window_open(force: bool) -> None:
-    """Pause a double-clicked console so the error above stays readable."""
-    if not force and not console_is_ours():
-        return
-    print("\nRead the message above, then close this window (or press Enter).")
-    try:
-        input()
-    except (EOFError, KeyboardInterrupt):
-        pass
 
 
 def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
@@ -173,7 +151,7 @@ def run(args: argparse.Namespace, extra: list[str]) -> int:
         return 1
     env = {**read_env_file(os.path.join(ROOT, ".env")), **os.environ}
     cmd = build_command(uv, args.api, args.port, extra, env)
-    port = args.port or (API_PORT if args.api else UI_PORT)
+    port = passthrough_port(extra) or args.port or (API_PORT if args.api else UI_PORT)
     url = f"http://{HOST}:{port}" + ("/docs" if args.api else "")
     print(f"Starting ACE-Step {'API server' if args.api else 'Gradio UI'} at {url}")
     print("(Ctrl+C or close this window to stop.)\n", flush=True)
