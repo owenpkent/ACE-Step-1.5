@@ -26,14 +26,13 @@ pip install torch torchaudio torchvision xformers --index-url https://download.p
 #install requirements without uv
 pip install -r requirements-rocm-linux.txt
 
-#start the program 
-#"--servername 0.0.0.0" is for making this on all networks card available
-#"--servername 127.0.0.1" is for making this just local available
-#"--servername localhost" or no without the "--servername" option also local only
-python -m acestep.acestep_v15_pipeline --server-name 0.0.0.0 --port 7680
-
-#start the program local
+#start the program (local only; this is also the default without --server-name)
 python -m acestep.acestep_v15_pipeline --server-name 127.0.0.1 --port 7680
+
+#"--server-name 0.0.0.0" makes the UI reachable from every network interface.
+#The Gradio UI has no login, so only do this on a trusted network
+#(see docs/en/SECURITY_HARDENING.md).
+#python -m acestep.acestep_v15_pipeline --server-name 0.0.0.0 --port 7680
 
 # Access the webui on your Browser
 http://127.0.0.1:7680
