@@ -41,6 +41,9 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - ACESTEP_MODE=${ACESTEP_MODE:-gradio}
+      # API key from the shell or this project's .env; empty disables auth.
+      # Required before PUBLISH_HOST=0.0.0.0 in API mode.
+      - ACESTEP_API_KEY=${ACESTEP_API_KEY:-}
       - ACESTEP_LLM_BACKEND=${ACESTEP_LLM_BACKEND:-pt}
       - ACESTEP_INIT_SERVICE=${ACESTEP_INIT_SERVICE:-true}
       - ACESTEP_CONFIG_PATH=${ACESTEP_CONFIG_PATH:-acestep-v15-turbo}

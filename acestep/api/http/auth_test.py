@@ -121,6 +121,14 @@ class AuthHelpersTests(unittest.TestCase):
 
         asyncio.run(verify_api_key(authorization="Bearer secret"))
 
+    def test_empty_key_disables_auth(self) -> None:
+        """An empty key (e.g. an unset Compose passthrough) means no auth, not an empty secret."""
+
+        set_api_key("")
+
+        self.assertIsNone(verify_token_from_request(body={}, authorization=None))
+        asyncio.run(verify_api_key(authorization=None))
+
 
 if __name__ == "__main__":
     unittest.main()

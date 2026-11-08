@@ -111,7 +111,14 @@ mkdir -p checkpoints gradio_outputs output
 sudo chown -R 1000:1000 checkpoints gradio_outputs output
 ```
 
-`docker-compose.yml` and `docker-compose.jetson.yml` publish ports 7860 and 8001 on the host's `127.0.0.1` only. To reach the container from other machines, set `PUBLISH_HOST=0.0.0.0` (for example `PUBLISH_HOST=0.0.0.0 docker compose up`), and set `ACESTEP_API_KEY` first.
+`docker-compose.yml` and `docker-compose.jetson.yml` publish ports 7860 and 8001 on the host's `127.0.0.1` only. To reach the container from other machines, set `PUBLISH_HOST=0.0.0.0`, and set `ACESTEP_API_KEY` first. Both compose files forward `ACESTEP_API_KEY` from your shell or from the project `.env` into the container, so either works:
+
+```bash
+export ACESTEP_API_KEY="<your key>"
+ACESTEP_MODE=api PUBLISH_HOST=0.0.0.0 docker compose up
+```
+
+Check before exposing it: `docker compose config` should list `ACESTEP_API_KEY` under the service's `environment`.
 
 Do not work around this with `docker run --user <other uid>`. The image's cache directories (`/app/.cache`, `/home/acestep/.cache`, and the fixed `UV_CACHE_DIR` and `HF_HOME` under it) belong to uid 1000, so another uid fails at startup when the API creates its temp directories. Setting `HOME` does not change those paths.
 

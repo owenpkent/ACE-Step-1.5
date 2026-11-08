@@ -51,6 +51,9 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - ACESTEP_MODE=${ACESTEP_MODE:-gradio}
+      # API key from the shell or this project's .env; empty disables auth.
+      # Required before PUBLISH_HOST=0.0.0.0 in API mode.
+      - ACESTEP_API_KEY=${ACESTEP_API_KEY:-}
       # vllm with 4B LM = best quality (README recommendation for ≥24GB).
       # CUDA graph capture is auto-disabled on Jetson (enforce_eager).
       - ACESTEP_LLM_BACKEND=${ACESTEP_LLM_BACKEND:-vllm}
