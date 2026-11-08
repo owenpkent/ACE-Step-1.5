@@ -63,6 +63,8 @@ Two practical consequences:
 
 The error message never echoes server paths.
 
+Audio downloads (`GET /v1/audio?path=...`) are confined separately, and more narrowly: the resolved path must sit inside the API's own audio directory (`api_audio` under `ACESTEP_TMPDIR` or the default temp directory), not just under one of the roots above. A path outside it gets `403`; see [API.md section 11](./API.md#11-download-audio-files).
+
 ---
 
 ## 4. Model weights and remote code

@@ -21,10 +21,11 @@ This service provides an HTTP-based asynchronous music generation API.
 - [Format Input](#6-format-input)
 - [Get Random Sample](#7-get-random-sample)
 - [List Available Models](#8-list-available-models)
-- [Server Statistics](#9-server-statistics)
-- [Download Audio Files](#10-download-audio-files)
-- [Health Check](#11-health-check)
-- [Environment Variables](#12-environment-variables)
+- [Initialize or Switch Models](#9-initialize-or-switch-models)
+- [Server Statistics](#10-server-statistics)
+- [Download Audio Files](#11-download-audio-files)
+- [Health Check](#12-health-check)
+- [Environment Variables](#13-environment-variables)
 - [Training API](#training-api)
 
 ---
@@ -689,6 +690,14 @@ Download generated audio files by path.
 | Parameter Name | Type | Description |
 | :--- | :--- | :--- |
 | `path` | string | URL-encoded path to the audio file |
+
+The route only serves files inside the API's audio directory, `<ACESTEP_TMPDIR>/api_audio` (by default `api_audio` under the cache's `tmp` folder). The path is resolved first, with `..` segments and symlinks followed, so a path that leaves the directory is refused even if it starts with the directory's name. The route requires the API key when one is configured.
+
+| Status | Meaning |
+| :--- | :--- |
+| `200` | File returned, with `audio/mpeg`, `audio/wav`, `audio/flac` or `audio/ogg` chosen by extension (`audio/mpeg` for any other extension) |
+| `403` | The resolved path is outside the audio directory |
+| `404` | No file at that path, or the path is the audio directory itself |
 
 ### 11.3 Usage Example
 
