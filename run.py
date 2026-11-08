@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 """Double-click launcher: start ACE-Step and open it in the browser.
 
-Double-click this file (or right-click -> Open) to start the Gradio UI. It finds uv, runs
-``uv sync`` the first time, launches the app on loopback and opens the page once the port
-answers. If anything fails the window stays open so the error can be read.
+Finds uv, runs ``uv sync`` the first time, launches on loopback, opens the page once the
+port answers, and keeps a double-clicked window open on failure. Stdlib only.
 
-    py run.py                  # Gradio UI on http://127.0.0.1:7860 (opens the browser)
+    py run.py                  # Gradio UI on http://127.0.0.1:7860
     py run.py --api            # REST API server on http://127.0.0.1:8001 instead
-    py run.py --no-browser     # do not open the page
-    py run.py --port 7861      # another port
     py run.py -- --offload_to_cpu true   # anything after -- goes to the app unchanged
 
-The platform launchers (start_gradio_ui_rocm.bat, *_xpu.bat, *_macos.sh) stay the way in
-for ROCm, Intel XPU and macOS; this covers the default CUDA/CPU path.
-
-Standard library only, so it runs on a bare Python before the venv exists.
+ROCm, Intel XPU and macOS keep their start_* launchers; this is the CUDA/CPU path.
 """
 
 import argparse
@@ -31,9 +25,8 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 HOST = "127.0.0.1"
 UI_PORT = 7860
 API_PORT = 8001
-# (flag, .env key, fallback). The UI ignores these .env keys outside API/service mode, so
-# read them here; otherwise a hardcoded model triggers a multi-GB download of one you
-# did not choose.
+# (flag, .env key, fallback). The UI reads these keys only in API/service mode; a
+# hardcoded model would download one nobody chose.
 UI_DEFAULTS = [("--config_path", "ACESTEP_CONFIG_PATH", "acestep-v15-turbo"),
                ("--lm_model_path", "ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-0.6B"),
                ("--init_service", None, "true")]
@@ -50,10 +43,9 @@ def find_uv() -> str | None:
     if found:
         return found
     exe = "uv.exe" if os.name == "nt" else "uv"
-    candidates = [os.path.join(os.path.expanduser("~"), ".local", "bin", exe)]
-    if os.environ.get("LOCALAPPDATA"):
-        candidates.append(os.path.join(os.environ["LOCALAPPDATA"], "Microsoft", "WinGet",
-                                       "Links", exe))
+    candidates = [os.path.join(os.path.expanduser("~"), ".local", "bin", exe),
+                  os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "Microsoft", "WinGet",
+                               "Links", exe)]
     return next((c for c in candidates if os.path.isfile(c)), None)
 
 
@@ -74,11 +66,7 @@ def read_env_file(path: str) -> dict[str, str]:
 
 def build_command(uv: str, api: bool, port: int | None, extra: list[str],
                   env: dict[str, str] | None = None) -> list[str]:
-    """Build the ``uv run`` argv for the chosen app; ``extra`` is appended unchanged.
-
-    ``env`` supplies the model choice (process environment over .env); unset or empty
-    keys fall back to the same models as start_gradio_ui.bat.
-    """
+    """Build the ``uv run`` argv; ``env`` picks the models, ``extra`` is appended as is."""
     env = env or {}
     if api:
         app = ["acestep-api", "--host", HOST, "--port", str(port or API_PORT)]
@@ -87,7 +75,7 @@ def build_command(uv: str, api: bool, port: int | None, extra: list[str],
         given = {arg.split("=", 1)[0] for arg in extra}
         for flag, key, fallback in UI_DEFAULTS:
             if flag not in given:
-                app += [flag, (env.get(key) if key else None) or fallback]
+                app += [flag, env.get(key) or fallback]
     return [uv, "run", "--no-sync", *app, *extra]
 
 
@@ -134,11 +122,10 @@ def console_is_ours() -> bool:
         count = kernel32.GetConsoleProcessList(pids, len(pids))
         for pid in pids[:min(count, len(pids))]:
             handle = kernel32.OpenProcess(0x1000, False, pid)  # QUERY_LIMITED_INFORMATION
-            if not handle:
+            if not handle:  # a process we may not open is not a shell of ours
                 continue
             try:
-                name = ctypes.create_unicode_buffer(32768)
-                size = wintypes.DWORD(len(name))
+                name, size = ctypes.create_unicode_buffer(32768), wintypes.DWORD(32768)
                 if kernel32.QueryFullProcessImageNameW(handle, 0, name, ctypes.byref(size)):
                     if os.path.basename(name.value).lower() in _SHELLS:
                         return False
