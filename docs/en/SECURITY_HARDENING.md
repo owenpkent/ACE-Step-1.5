@@ -104,14 +104,14 @@ docker run --gpus all \
 
 `ACESTEP_MODE=api` selects the REST server (the image defaults to the Gradio UI on port 7860). Publishing to `127.0.0.1` keeps the port off the LAN while the container keeps its internal bind. Mount only the directories the training routes need.
 
-Bind-mounted host directories must be writable by uid 1000. Either change their owner first, or run the container as your own user:
+Bind-mounted host directories must be writable by uid 1000, so change their owner before the first run:
 
 ```bash
 mkdir -p checkpoints gradio_outputs output
 sudo chown -R 1000:1000 checkpoints gradio_outputs output
-# or
-docker run --user "$(id -u):$(id -g)" -e HOME=/tmp ...
 ```
+
+Do not work around this with `docker run --user <other uid>`. The image's cache directories (`/app/.cache`, `/home/acestep/.cache`, and the fixed `UV_CACHE_DIR` and `HF_HOME` under it) belong to uid 1000, so another uid fails at startup when the API creates its temp directories. Setting `HOME` does not change those paths.
 
 ---
 
