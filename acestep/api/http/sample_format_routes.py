@@ -8,6 +8,7 @@ from threading import Lock
 from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import FastAPI, Header, HTTPException, Request
+from loguru import logger
 
 
 def register_sample_format_routes(
@@ -66,7 +67,8 @@ def register_sample_format_routes(
         with llm_lock:
             if not getattr(app.state, "_llm_initialized", False):
                 if getattr(app.state, "_llm_init_error", None):
-                    raise HTTPException(status_code=500, detail=f"LLM init failed: {app.state._llm_init_error}")
+                    logger.error("LLM init failed: {}", app.state._llm_init_error)
+                    raise HTTPException(status_code=500, detail="LLM init failed; see server log")
                 if getattr(app.state, "_llm_lazy_load_disabled", False):
                     raise HTTPException(
                         status_code=503,
@@ -99,7 +101,8 @@ def register_sample_format_routes(
                 )
                 if not ok:
                     app.state._llm_init_error = status
-                    raise HTTPException(status_code=500, detail=f"LLM init failed: {status}")
+                    logger.error("LLM init failed: {}", status)
+                    raise HTTPException(status_code=500, detail="LLM init failed; see server log")
                 app.state._llm_initialized = True
 
         prompt = body.get("prompt", "") or ""
@@ -143,7 +146,8 @@ def register_sample_format_routes(
             )
             if not format_result.success:
                 error_msg = format_result.error or format_result.status_message
-                return wrap_response(None, code=500, error=f"format_sample failed: {error_msg}")
+                logger.error("format_sample failed: {}", error_msg)
+                return wrap_response(None, code=500, error="format_sample failed; see server log")
 
             return wrap_response(
                 {
@@ -156,8 +160,9 @@ def register_sample_format_routes(
                     "vocal_language": format_result.language or language or "unknown",
                 }
             )
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"format_sample error: {str(exc)}")
+        except Exception:
+            logger.exception("format_sample failed")
+            return wrap_response(None, code=500, error="format_sample failed; see server log")
 
     @app.post("/v1/create_sample")
     async def create_sample_endpoint(request: Request, authorization: Optional[str] = Header(None)):
@@ -188,7 +193,8 @@ def register_sample_format_routes(
         with llm_lock:
             if not getattr(app.state, "_llm_initialized", False):
                 if getattr(app.state, "_llm_init_error", None):
-                    raise HTTPException(status_code=500, detail=f"LLM init failed: {app.state._llm_init_error}")
+                    logger.error("LLM init failed: {}", app.state._llm_init_error)
+                    raise HTTPException(status_code=500, detail="LLM init failed; see server log")
                 if getattr(app.state, "_llm_lazy_load_disabled", False):
                     raise HTTPException(
                         status_code=503,
@@ -219,7 +225,8 @@ def register_sample_format_routes(
                 )
                 if not ok:
                     app.state._llm_init_error = status
-                    raise HTTPException(status_code=500, detail=f"LLM init failed: {status}")
+                    logger.error("LLM init failed: {}", status)
+                    raise HTTPException(status_code=500, detail="LLM init failed; see server log")
                 app.state._llm_initialized = True
 
         try:
@@ -232,7 +239,8 @@ def register_sample_format_routes(
                 use_constrained_decoding=True,
             )
             if not result.success:
-                return wrap_response(None, code=500, error=result.status_message or "Failed to create sample")
+                logger.error("create_sample failed: {}", result.status_message)
+                return wrap_response(None, code=500, error="create_sample failed; see server log")
             return wrap_response({
                 "caption": result.caption or "",
                 "lyrics": result.lyrics or "",
@@ -242,5 +250,6 @@ def register_sample_format_routes(
                 "timesignature": result.timesignature or "",
                 "vocal_language": result.language or vocal_language,
             })
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"create_sample error: {str(exc)}")
+        except Exception:
+            logger.exception("create_sample failed")
+            return wrap_response(None, code=500, error="create_sample failed; see server log")

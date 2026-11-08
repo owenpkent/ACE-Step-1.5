@@ -15,6 +15,7 @@ from acestep.api.train_api_runtime import RuntimeComponentManager
 from acestep.handler import AceStepHandler
 from acestep.llm_inference import LLMHandler
 from acestep.api.http.path_policy import resolve_allowed
+from loguru import logger
 
 
 def register_training_dataset_preprocess_routes(
@@ -68,8 +69,9 @@ def register_training_dataset_preprocess_routes(
                     }
                 )
             return wrap_response(None, code=400, error=status)
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"Preprocessing failed: {exc}")
+        except Exception:
+            logger.exception("Preprocessing failed")
+            return wrap_response(None, code=500, error="Preprocessing failed; see server log")
         finally:
             mgr.restore()
 

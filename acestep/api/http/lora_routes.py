@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from acestep.handler import AceStepHandler
 from acestep.api.http.path_policy import resolve_allowed
+from loguru import logger
 
 _SUCCESS_PREFIX = "\u2705"
 _WARNING_PREFIX = "\u26a0\ufe0f"
@@ -79,8 +80,9 @@ def register_lora_routes(
             raise HTTPException(status_code=400, detail=result)
         except HTTPException:
             raise
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Failed to load LoRA: {str(exc)}")
+        except Exception:
+            logger.exception("Failed to load LoRA")
+            raise HTTPException(status_code=500, detail="Failed to load LoRA; see server log")
 
     @app.post("/v1/lora/unload")
     async def unload_lora_endpoint(_: None = Depends(verify_api_key)):
@@ -94,8 +96,9 @@ def register_lora_routes(
             raise HTTPException(status_code=400, detail=result)
         except HTTPException:
             raise
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Failed to unload LoRA: {str(exc)}")
+        except Exception:
+            logger.exception("Failed to unload LoRA")
+            raise HTTPException(status_code=500, detail="Failed to unload LoRA; see server log")
 
     @app.post("/v1/lora/toggle")
     async def toggle_lora_endpoint(request: ToggleLoRARequest, _: None = Depends(verify_api_key)):
@@ -107,8 +110,9 @@ def register_lora_routes(
             if _is_success_message(result):
                 return wrap_response({"message": result, "use_lora": request.use_lora})
             return wrap_response(None, code=400, error=result)
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"Failed to toggle LoRA: {str(exc)}")
+        except Exception:
+            logger.exception("Failed to toggle LoRA")
+            return wrap_response(None, code=500, error="Failed to toggle LoRA; see server log")
 
     @app.post("/v1/lora/scale")
     async def set_lora_scale_endpoint(request: SetLoRAScaleRequest, _: None = Depends(verify_api_key)):
@@ -128,8 +132,9 @@ def register_lora_routes(
                     response_data["adapter_name"] = adapter_name
                 return wrap_response(response_data)
             return wrap_response(None, code=400, error=result)
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"Failed to set LoRA scale: {str(exc)}")
+        except Exception:
+            logger.exception("Failed to set LoRA scale")
+            return wrap_response(None, code=500, error="Failed to set LoRA scale; see server log")
 
     @app.get("/v1/lora/status")
     async def get_lora_status_endpoint(_: None = Depends(verify_api_key)):

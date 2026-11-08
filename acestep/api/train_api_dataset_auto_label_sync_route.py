@@ -116,7 +116,8 @@ def register_training_dataset_auto_label_sync_route(
                         "samples": _serialize_samples(builder),
                     }
                 )
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"Auto-label failed: {exc}")
+        except Exception:
+            logger.exception("Auto-label failed")
+            return wrap_response(None, code=500, error="Auto-label failed; see server log")
         finally:
             mgr.restore()

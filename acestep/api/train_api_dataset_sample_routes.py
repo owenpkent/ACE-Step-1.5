@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException
 
 from acestep.api.http.path_policy import resolve_allowed
 from acestep.api.train_api_dataset_models import SaveDatasetRequest, UpdateSampleRequest, _serialize_samples
+from loguru import logger
 
 
 def register_training_dataset_sample_routes(
@@ -44,8 +45,9 @@ def register_training_dataset_sample_routes(
             if status.startswith("✅"):
                 return wrap_response({"message": status, "save_path": request.save_path})
             return wrap_response(None, code=400, error=status)
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"Save failed: {exc}")
+        except Exception:
+            logger.exception("Save sample failed")
+            return wrap_response(None, code=500, error="Save failed; see server log")
 
     @app.get("/v1/dataset/samples")
     async def get_all_samples(_: None = Depends(verify_api_key)):
@@ -108,5 +110,6 @@ def register_training_dataset_sample_routes(
                 sample_payload["index"] = sample_idx
                 return wrap_response({"message": status, "sample": sample_payload})
             return wrap_response(None, code=400, error=status)
-        except Exception as exc:
-            return wrap_response(None, code=500, error=f"Update failed: {exc}")
+        except Exception:
+            logger.exception("Update sample failed")
+            return wrap_response(None, code=500, error="Update failed; see server log")
