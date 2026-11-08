@@ -38,7 +38,9 @@ def register_audio_route(
 
         resolved_path = os.path.realpath(path)
         allowed_dir = os.path.realpath(request.app.state.temp_audio_dir)
-        if resolved_path != allowed_dir and not resolved_path.startswith(allowed_dir + os.sep):
+        if resolved_path == allowed_dir:
+            raise HTTPException(status_code=404, detail="Audio file not found")
+        if not resolved_path.startswith(allowed_dir + os.sep):
             raise HTTPException(status_code=403, detail="Access denied: path outside allowed directory")
         if not os.path.isfile(resolved_path):
             raise HTTPException(status_code=404, detail="Audio file not found")
