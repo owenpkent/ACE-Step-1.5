@@ -860,7 +860,7 @@ curl -X POST http://localhost:8001/v1/training/start_lokr \
 }
 ```
 
-For `500` responses the message is generic (for example `"Export failed; see server log"`). The exception itself is written to the server log, not returned to the client, so responses never carry server paths or internals.
+For `500` responses the message is generic (for example `"Export failed; see server log"`). The underlying exception or failure status is written to the server log instead of the response. Asynchronous job and training status (polled after the request returns) still reports the underlying failure reason, so treat those fields as server-internal.
 
 ---
 
