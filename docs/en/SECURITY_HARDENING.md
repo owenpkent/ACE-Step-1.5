@@ -58,7 +58,8 @@ $env:ACESTEP_ALLOWED_PATHS = "D:\datasets;D:\loras"
 Two practical consequences:
 
 - Start the server from the project directory, not from your home directory. The startup working directory is an allowed root, so starting from `~` would allow the whole home directory.
-- Destructive operations (the export route removes and recreates `export_path`) refuse a path that equals an allowed root, so you cannot wipe a root by passing it directly.
+- Destructive operations (the export route removes and recreates `export_path`) refuse a path that equals an allowed root, so you cannot wipe a root by passing it directly. They also refuse a path whose last component is a symlink or junction.
+- At startup the API server logs every allowed root. It logs a warning when a root is a drive root, your home directory, or a parent of it, and names where that root came from (startup directory, project directory, `ACESTEP_TMPDIR` or `ACESTEP_ALLOWED_PATHS`) with the change that removes it.
 
 The error message never echoes server paths.
 
@@ -89,7 +90,7 @@ Known gap: `pillow` is held below 13.0 by `gradio`, and pillow 12.x still carrie
 
 ## 6. Docker
 
-The container runs as root and binds `0.0.0.0` inside the container. Recommended run flags:
+The container runs as the non-root user `acestep` (uid/gid 1000) and binds `0.0.0.0` inside the container. Recommended run flags:
 
 ```bash
 docker run --gpus all \
@@ -103,6 +104,15 @@ docker run --gpus all \
 
 `ACESTEP_MODE=api` selects the REST server (the image defaults to the Gradio UI on port 7860). Publishing to `127.0.0.1` keeps the port off the LAN while the container keeps its internal bind. Mount only the directories the training routes need.
 
+Bind-mounted host directories must be writable by uid 1000, so change their owner before the first run:
+
+```bash
+mkdir -p checkpoints gradio_outputs output
+sudo chown -R 1000:1000 checkpoints gradio_outputs output
+```
+
+Do not work around this with `docker run --user <other uid>`. The image's cache directories (`/app/.cache`, `/home/acestep/.cache`, and the fixed `UV_CACHE_DIR` and `HF_HOME` under it) belong to uid 1000, so another uid fails at startup when the API creates its temp directories. Setting `HOME` does not change those paths.
+
 ---
 
 ## 7. Checklist
@@ -113,6 +123,7 @@ docker run --gpus all \
 - [ ] Only official checkpoints and your own adapters are loaded
 - [ ] Installed from `uv.lock`
 - [ ] Docker port published to loopback, data mounted read-only where possible
+- [ ] No allowed-root warning in the API server's startup log
 
 ---
 
@@ -125,6 +136,7 @@ docker run --gpus all \
 | `ACESTEP_API_KEY` | (empty) | Bearer key for every REST and OpenRouter-compatible route; empty disables auth |
 | `ACESTEP_ALLOWED_PATHS` | (empty) | Extra directories the training, dataset and LoRA routes may read or write |
 | `ACESTEP_TMPDIR` | `.cache/acestep/tmp` | Temp directory; also an allowed root |
+| `ACESTEP_ALLOW_BODY_API_TOKEN` | `false` | Accept the key as `ai_token` in the request body (deprecated; prefer the `Authorization` header) |
 | `OPENROUTER_API_KEY` | (empty) | Bearer key for the standalone OpenRouter server only |
 
 Full variable list: [API Reference, section 13](./API.md#13-environment-variables).

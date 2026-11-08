@@ -6,6 +6,9 @@ Triage date: 2026-11-07, against upstream `main` at `ca1e85f`.
 This is a working document for the fork. It records which open upstream pull requests
 and issues are worth bringing into the fork, and the order to do it in.
 
+Status 2026-11-07: Phases 0 to 3 are done and every fork PR below is merged into `main`.
+The per-phase worktrees have been removed. Phase 4 is still open.
+
 ## Summary
 
 - Upstream had 67 open PRs and 95 open issues. Most are stale support questions,
@@ -18,7 +21,7 @@ and issues are worth bringing into the fork, and the order to do it in.
 - Two upstream PRs collide with the fork's security series and should be skipped or
   sequenced after it.
 
-## Fork PRs already open
+## Fork security series (merged)
 
 | Fork PR | Branch | Topic |
 |---|---|---|
@@ -29,6 +32,11 @@ and issues are worth bringing into the fork, and the order to do it in.
 | 5 | `chore/bump-vulnerable-deps` | Dependency bumps past known advisories |
 | 6 | `fix/confine-training-route-paths` | Training and dataset paths confined to allowed roots |
 | 7 | `docs/security-hardening` | Operator security hardening guide |
+
+Merged alongside, outside this plan: 19 (transitive dependency bumps), 20 (scanner-found
+crashes), 21 (Docker non-root user), 22 (generic error details on the Gradio API routes),
+29 (startup warning for broad allowed roots), 30 (path policy: outside links and case
+variants), and Dependabot 23 to 28 (GitHub Actions bumps).
 
 ## Upstream PRs to port
 
@@ -85,7 +93,7 @@ Notes:
   this fix from `fix/api-auth-openrouter-routes`, not from `main`, to avoid conflicts.
 - `ai_token` is documented in `docs/en/API.md` and its `zh`, `ja`, and `ko` translations.
   Removing it breaks any client that sends the key in the body.
-- **Open decision:** remove outright, or reject by default with an opt-in environment
+- **Decision (taken, see Phase 3):** remove outright, or reject by default with an opt-in environment
   flag for old clients. Recommended: opt-in flag, off by default, with a warning in the
   log when it is used. This keeps the public interface available, as `AGENTS.md` asks.
 - Tests: header auth still works; body token rejected by default; body token accepted
@@ -166,7 +174,7 @@ uv run python -m unittest discover -s . -p "test_*.py"
 
 Order: #1321, #1357, #1188, #1352, #1309 (with its stale test fixed).
 
-Status 2026-11-07: done, in worktree `W:/dev/ace-step-wt/ports`.
+Status 2026-11-07: done and merged.
 
 | Upstream | Fork PR | Branch | Notes |
 |---|---|---|---|
@@ -183,7 +191,7 @@ Port #1368 on `port/1368-windows-offload-ram`, together with #1369 if wanted. Be
 opening the fork PR, run five generations with DiT offload on and record private memory
 after each. It should stay flat.
 
-Status 2026-11-07: done, fork PR 13. AI co-author trailers dropped from both upstream
+Status 2026-11-07: done and merged, fork PR 13. AI co-author trailers dropped from both upstream
 commits. Measured with `docs/fork/measure_offload_ram.py` (run from the checkout under
 test; checkpoints read from the main checkout). RTX 5090, 96 GB RAM, torch 2.7.1+cu128,
 `acestep-v15-turbo` + `acestep-5Hz-lm-1.7B` (pt), five 60 s generations, private bytes:
@@ -199,18 +207,18 @@ on either build. #1369 ported as fork PR 14 (`port/1369-windows-rss-readout`): `
 
 ### Phase 3: fork-authored fixes
 
-1. `fix/remove-body-api-token`, branched from `fix/api-auth-openrouter-routes`. Becomes
-   fork PR 8 in the security series. Needs the open decision above.
+1. `fix/remove-body-api-token`, branched from `fix/api-auth-openrouter-routes`. Became
+   fork PR 18.
 2. `fix/lokr-key-mismatch-warning` from `main`.
 3. `fix/skip-lm-check-without-llm` from `main`.
 
-Status 2026-11-07: done. Worktrees `W:/dev/ace-step-wt/{lokr,lm-check,body-token}`.
+Status 2026-11-07: done and merged.
 
 | Fix | Fork PR | Notes |
 |---|---|---|
 | LoKR key mismatch | 16 | LyCORIS `load_weights` returns a dict (`"missing keys"`, `"unexpected keys"`), not torch `_IncompatibleKeys`. New `lora/lokr_load_check.py`; `add_lora` already converts the raise into the `❌` message |
 | LM-aware download | 17 | New `download_main_component` fetches one folder via `_smart_download(allow_patterns=...)`, verified live against HuggingFace. `initialize_service(require_lm=True)` added; API paths pass it, Gradio pipeline left at default |
-| Body `ai_token` | 18, base `fix/api-auth-openrouter-routes` | Decision taken: opt-in `ACESTEP_ALLOW_BODY_API_TOKEN`, off by default; body token ignored with a warning and the header check runs as before. Retarget to `main` after fork PR 1 merges |
+| Body `ai_token` | 18, base `fix/api-auth-openrouter-routes` | Decision taken: opt-in `ACESTEP_ALLOW_BODY_API_TOKEN`, off by default; body token ignored with a warning and the header check runs as before. Retargeted to `main` after fork PR 1 merged |
 
 ### Phase 4: upstream follow-up
 
@@ -224,4 +232,4 @@ Status 2026-11-07: done. Worktrees `W:/dev/ace-step-wt/{lokr,lm-check,body-token
 - Each port has its own fork PR with the upstream PR linked in the description.
 - The focused tests for each touched module pass.
 - #1368 has a recorded memory measurement on Windows.
-- The `ai_token` decision is made and recorded in fork PR 8. (Done: opt-in flag, see Phase 3.)
+- The `ai_token` decision is made and recorded in fork PR 18. (Done: opt-in flag, see Phase 3.)

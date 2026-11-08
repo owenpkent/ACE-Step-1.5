@@ -25,7 +25,8 @@
 # Volumes (non-root): the container runs as uid/gid 1000 ("acestep"). Make
 # bind-mounted host dirs writable first, e.g.
 #   mkdir -p checkpoints gradio_outputs output && sudo chown -R 1000:1000 checkpoints gradio_outputs output
-# or override the user: docker run --user "$(id -u):$(id -g)" -e HOME=/tmp ...
+# Do not use --user with another uid: the image's cache dirs (/app/.cache,
+# /home/acestep/.cache, UV_CACHE_DIR, HF_HOME) belong to uid 1000.
 #
 # =============================================================================
 
@@ -81,8 +82,8 @@ RUN mkdir -p /app/checkpoints /app/gradio_outputs /app/output
 # ==================== Non-root user ====================
 # Run as uid/gid 1000 instead of root. The dependency environment stays
 # root-owned (read/execute only); only the writable paths are chowned.
-# Bind-mounted host directories must be writable by uid 1000 (or run with
-# `--user $(id -u):$(id -g)` and a writable HOME).
+# Bind-mounted host directories must be writable by uid 1000; another uid via
+# --user cannot write the image's cache directories.
 RUN groupadd --gid 1000 acestep \
     && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash acestep
 ENV HOME=/home/acestep

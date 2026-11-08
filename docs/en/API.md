@@ -740,6 +740,7 @@ The API server can be configured using environment variables:
 | `ACESTEP_API_PORT` | `8001` | Server bind port |
 | `ACESTEP_API_KEY` | (empty) | API authentication key (empty disables auth) |
 | `ACESTEP_ALLOWED_PATHS` | (empty) | Extra directories (separated by `;` on Windows, `:` elsewhere) that training, dataset and LoRA routes may read or write, in addition to the project directory |
+| `ACESTEP_ALLOW_BODY_API_TOKEN` | `false` | Also accept the API key as `ai_token` in the request body (deprecated) |
 | `ACESTEP_API_WORKERS` | `1` | API worker thread count |
 
 ### Model Configuration
@@ -752,7 +753,9 @@ The API server can be configured using environment variables:
 | `ACESTEP_DEVICE` | `auto` | Device for model loading |
 | `ACESTEP_USE_FLASH_ATTENTION` | `true` | Enable flash attention |
 | `ACESTEP_OFFLOAD_TO_CPU` | `false` | Offload models to CPU when idle |
-| `ACESTEP_OFFLOAD_DIT_TO_CPU` | `false` | Offload DiT specifically to CPU |
+| `ACESTEP_OFFLOAD_DIT_TO_CPU` | `false` | Offload DiT specifically to CPU (only takes effect when `ACESTEP_OFFLOAD_TO_CPU` is also on) |
+| `ACESTEP_ON_DEMAND_MODEL_LOAD` | `false` | When a request names a model that is not loaded, load it at request time in place of the primary model, instead of falling back to the primary. Only honoured when `ACESTEP_QUEUE_WORKERS` and `ACESTEP_API_WORKERS` are both `1` |
+| `ACESTEP_SKIP_VRAM_PREFLIGHT` | `false` | Skip the VRAM check before CUDA generation (a warning is logged; out-of-memory errors are then possible) |
 
 ### LM Configuration
 
