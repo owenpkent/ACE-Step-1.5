@@ -1,7 +1,5 @@
 # ACE-Step Gradio Demo User Guide
 
-**Language / 语言 / 言語:** [English](GRADIO_GUIDE.md) | [中文](../zh/GRADIO_GUIDE.md) | [日本語](../ja/GRADIO_GUIDE.md)
-
 ---
 
 This guide provides comprehensive documentation for using the ACE-Step Gradio web interface for music generation, including all features and settings.

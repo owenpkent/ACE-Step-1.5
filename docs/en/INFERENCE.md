@@ -1,7 +1,5 @@
 # ACE-Step Inference API Documentation
 
-**Language / 语言 / 言語:** [English](INFERENCE.md) | [中文](../zh/INFERENCE.md) | [日本語](../ja/INFERENCE.md)
-
 ---
 
 This document provides comprehensive documentation for the ACE-Step inference API, including parameter specifications for all supported task types.

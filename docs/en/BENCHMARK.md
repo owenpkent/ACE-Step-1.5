@@ -1,7 +1,5 @@
 # ACE-Step 1.5 Benchmark & Profiling Guide
 
-**Language / 语言:** [English](BENCHMARK.md) | [中文](../zh/BENCHMARK.md)
-
 ---
 
 ## Table of Contents
