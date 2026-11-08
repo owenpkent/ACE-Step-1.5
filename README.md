@@ -120,6 +120,8 @@ uv run acestep-api
 
 Open http://localhost:7860 (Gradio) or http://localhost:8001 (API).
 
+> 🖱️ **One-click launch:** double-click `run.py` (or `python run.py`). It installs the environment on first run, starts the Gradio UI on loopback, and opens the page when it is ready. `python run.py --api` starts the REST API instead; `--help` lists the options.
+
 > 📦 **Windows users:** A [portable package](https://files.acemusic.ai/acemusic/win/ACE-Step-1.5.7z) with pre-installed dependencies is available. See [Installation Guide](./docs/en/INSTALL.md#-windows-portable-package).
 
 > 📦 **MacOS users:** A [portable package](https://files.acemusic.ai/acemusic/mac/ACE-Step-1.5.zip) with pre-installed dependencies is available. See [Installation Guide](./docs/en/INSTALL.md#-macos-portable-package).
