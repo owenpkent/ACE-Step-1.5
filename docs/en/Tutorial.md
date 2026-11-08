@@ -1,7 +1,5 @@
 # ACE-Step 1.5 Ultimate Guide (Must Read)
 
-**Language / 语言 / 言語:** [English](Tutorial.md) | [中文](../zh/Tutorial.md) | [日本語](../ja/Tutorial.md)
-
 ---
 
 Hello everyone, I'm Gong Junmin, the developer of ACE-Step. Through this tutorial, I'll guide you through the design philosophy and usage of ACE-Step 1.5.

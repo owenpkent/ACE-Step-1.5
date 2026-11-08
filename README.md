@@ -124,7 +124,7 @@ Open http://localhost:7860 (Gradio) or http://localhost:8001 (API).
 
 > 📦 **MacOS users:** A [portable package](https://files.acemusic.ai/acemusic/mac/ACE-Step-1.5.zip) with pre-installed dependencies is available. See [Installation Guide](./docs/en/INSTALL.md#-macos-portable-package).
 
-> 📖 **Full installation guide** (AMD/ROCm, Intel GPU, CPU, environment variables, command-line options): [English](./docs/en/INSTALL.md) | [中文](./docs/zh/INSTALL.md) | [日本語](./docs/ja/INSTALL.md)
+> 📖 **Full installation guide** (AMD/ROCm, Intel GPU, CPU, environment variables, command-line options): [English](./docs/en/INSTALL.md)
 
 ### 💡 Which Model Should I Choose?
 
@@ -141,7 +141,7 @@ Open http://localhost:7860 (Gradio) or http://localhost:8001 (API).
 
 The UI automatically selects the best configuration for your GPU. All settings (LM model, backend, offloading, quantization) are tier-aware and pre-configured.
 
-> 📖 GPU compatibility details: [English](./docs/en/GPU_COMPATIBILITY.md) | [中文](./docs/zh/GPU_COMPATIBILITY.md) | [日本語](./docs/ja/GPU_COMPATIBILITY.md) | [한국어](./docs/ko/GPU_COMPATIBILITY.md)
+> 📖 GPU compatibility details: [English](./docs/en/GPU_COMPATIBILITY.md)
 
 ## 🚀 Launch Scripts
 
@@ -181,7 +181,7 @@ PORT=7860
 LANGUAGE=en
 ```
 
-> 📖 **Script configuration & customization:** [English](./docs/en/INSTALL.md#-launch-scripts) | [中文](./docs/zh/INSTALL.md#-启动脚本) | [日本語](./docs/ja/INSTALL.md#-起動スクリプト)
+> 📖 **Script configuration & customization:** [English](./docs/en/INSTALL.md#-launch-scripts)
 
 ## 📚 Documentation
 
@@ -200,30 +200,23 @@ LANGUAGE=en
 
 | Topic | Documentation |
 |-------|---------------|
-| 📦 Installation (all platforms) | [English](./docs/en/INSTALL.md) \| [中文](./docs/zh/INSTALL.md) \| [日本語](./docs/ja/INSTALL.md) |
-| 🎮 GPU Compatibility | [English](./docs/en/GPU_COMPATIBILITY.md) \| [中文](./docs/zh/GPU_COMPATIBILITY.md) \| [日本語](./docs/ja/GPU_COMPATIBILITY.md) |
+| 📦 Installation (all platforms) | [English](./docs/en/INSTALL.md) |
+| 🎮 GPU Compatibility | [English](./docs/en/GPU_COMPATIBILITY.md) |
 | 🔧 GPU Troubleshooting | [English](./docs/en/GPU_TROUBLESHOOTING.md) |
-| 🔬 Benchmark & Profiling | [English](./docs/en/BENCHMARK.md) \| [中文](./docs/zh/BENCHMARK.md) |
+| 🔬 Benchmark & Profiling | [English](./docs/en/BENCHMARK.md) |
 | 🔒 Security Hardening (API key, bind address, path confinement, trusted weights) | [English](./docs/en/SECURITY_HARDENING.md) |
 
-### Multi-Language Docs
+### Guide Index
 
-| Language | API | Gradio | Inference | Tutorial | LoRA Training | Install | Benchmark |
-|----------|-----|--------|-----------|----------|---------------|---------|-----------|
-| 🇺🇸 English | [Link](./docs/en/API.md) | [Link](./docs/en/GRADIO_GUIDE.md) | [Link](./docs/en/INFERENCE.md) | [Link](./docs/en/Tutorial.md) | [Link](./docs/en/LoRA_Training_Tutorial.md) | [Link](./docs/en/INSTALL.md) | [Link](./docs/en/BENCHMARK.md) |
-| 🇨🇳 中文 | [Link](./docs/zh/API.md) | [Link](./docs/zh/GRADIO_GUIDE.md) | [Link](./docs/zh/INFERENCE.md) | [Link](./docs/zh/Tutorial.md) | [Link](./docs/zh/LoRA_Training_Tutorial.md) | [Link](./docs/zh/INSTALL.md) | [Link](./docs/zh/BENCHMARK.md) |
-| 🇯🇵 日本語 | [Link](./docs/ja/API.md) | [Link](./docs/ja/GRADIO_GUIDE.md) | [Link](./docs/ja/INFERENCE.md) | [Link](./docs/ja/Tutorial.md) | [Link](./docs/ja/LoRA_Training_Tutorial.md) | [Link](./docs/ja/INSTALL.md) | — |
-| 🇰🇷 한국어 | [Link](./docs/ko/API.md) | [Link](./docs/ko/GRADIO_GUIDE.md) | [Link](./docs/ko/INFERENCE.md) | [Link](./docs/ko/Tutorial.md) | [Link](./docs/ko/LoRA_Training_Tutorial.md) | — | — |
+| API | Gradio | Inference | Tutorial | LoRA Training | Install | Benchmark |
+|-----|--------|-----------|----------|---------------|---------|-----------|
+| [Link](./docs/en/API.md) | [Link](./docs/en/GRADIO_GUIDE.md) | [Link](./docs/en/INFERENCE.md) | [Link](./docs/en/Tutorial.md) | [Link](./docs/en/LoRA_Training_Tutorial.md) | [Link](./docs/en/INSTALL.md) | [Link](./docs/en/BENCHMARK.md) |
 
 ## 📖 Tutorial
 
 **🎯 Must Read:** Comprehensive guide to ACE-Step 1.5's design philosophy and usage methods.
 
-| Language | Link |
-|----------|------|
-| 🇺🇸 English | [English Tutorial](./docs/en/Tutorial.md) |
-| 🇨🇳 中文 | [中文教程](./docs/zh/Tutorial.md) |
-| 🇯🇵 日本語 | [日本語チュートリアル](./docs/ja/Tutorial.md) |
+📖 [Tutorial](./docs/en/Tutorial.md)
 
 This tutorial covers: mental models and design philosophy, model architecture and selection, input control (text and audio), inference hyperparameters, random factors and optimization strategies.
 
@@ -231,12 +224,7 @@ This tutorial covers: mental models and design philosophy, model architecture an
 
 📖 **LoRA Training Tutorial** — step-by-step guide covering data preparation, annotation, preprocessing, and training:
 
-| Language | Link |
-|----------|------|
-| 🇺🇸 English | [LoRA Training Tutorial](./docs/en/LoRA_Training_Tutorial.md) |
-| 🇨🇳 中文 | [LoRA 训练教程](./docs/zh/LoRA_Training_Tutorial.md) |
-| 🇯🇵 日本語 | [LoRA トレーニングチュートリアル](./docs/ja/LoRA_Training_Tutorial.md) |
-| 🇰🇷 한국어 | [LoRA 학습 튜토리얼](./docs/ko/LoRA_Training_Tutorial.md) |
+📖 [LoRA Training Tutorial](./docs/en/LoRA_Training_Tutorial.md)
 
 See also the **LoRA Training** tab in Gradio UI for one-click training, or [Gradio Guide - LoRA Training](./docs/en/GRADIO_GUIDE.md#lora-training) for UI reference.
 
@@ -289,7 +277,7 @@ python profile_inference.py                        # Single-run profile
 python profile_inference.py --mode benchmark       # Configuration matrix
 ```
 
-> 📖 **Full guide** (all modes, CLI options, output interpretation): [English](./docs/en/BENCHMARK.md) | [中文](./docs/zh/BENCHMARK.md)
+> 📖 **Full guide** (all modes, CLI options, output interpretation): [English](./docs/en/BENCHMARK.md)
 
 ## 📜 License & Disclaimer
 
