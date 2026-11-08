@@ -31,8 +31,12 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 HOST = "127.0.0.1"
 UI_PORT = 7860
 API_PORT = 8001
-UI_DEFAULTS = ["--config_path", "acestep-v15-turbo",
-               "--lm_model_path", "acestep-5Hz-lm-0.6B", "--init_service", "true"]
+# (flag, .env key, fallback). The UI ignores these .env keys outside API/service mode, so
+# read them here; otherwise a hardcoded model triggers a multi-GB download of one you
+# did not choose.
+UI_DEFAULTS = [("--config_path", "ACESTEP_CONFIG_PATH", "acestep-v15-turbo"),
+               ("--lm_model_path", "ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-0.6B"),
+               ("--init_service", None, "true")]
 # Model download and init can take many minutes on a first run.
 BROWSER_WAIT_S = 1800.0
 # A human shell sharing this console means the output survives our exit: no need to hold.
@@ -53,16 +57,37 @@ def find_uv() -> str | None:
     return next((c for c in candidates if os.path.isfile(c)), None)
 
 
-def build_command(uv: str, api: bool, port: int | None, extra: list[str]) -> list[str]:
-    """Build the ``uv run`` argv for the chosen app; ``extra`` is appended unchanged."""
+def read_env_file(path: str) -> dict[str, str]:
+    """Parse simple ``KEY=value`` lines from a .env file; missing file gives {}."""
+    values: dict[str, str] = {}
+    try:
+        with open(path, encoding="utf-8") as handle:
+            for line in handle:
+                key, sep, value = line.strip().partition("=")
+                if sep and key and not key.startswith("#"):
+                    value = value.split(" #", 1)[0]  # inline comment, as python-dotenv
+                    values[key.strip()] = value.strip().strip("\"'")
+    except OSError:
+        pass
+    return values
+
+
+def build_command(uv: str, api: bool, port: int | None, extra: list[str],
+                  env: dict[str, str] | None = None) -> list[str]:
+    """Build the ``uv run`` argv for the chosen app; ``extra`` is appended unchanged.
+
+    ``env`` supplies the model choice (process environment over .env); unset or empty
+    keys fall back to the same models as start_gradio_ui.bat.
+    """
+    env = env or {}
     if api:
         app = ["acestep-api", "--host", HOST, "--port", str(port or API_PORT)]
     else:
         app = ["acestep", "--port", str(port or UI_PORT), "--server-name", HOST]
         given = {arg.split("=", 1)[0] for arg in extra}
-        for flag, value in zip(UI_DEFAULTS[::2], UI_DEFAULTS[1::2]):
+        for flag, key, fallback in UI_DEFAULTS:
             if flag not in given:
-                app += [flag, value]
+                app += [flag, (env.get(key) if key else None) or fallback]
     return [uv, "run", "--no-sync", *app, *extra]
 
 
@@ -159,7 +184,8 @@ def run(args: argparse.Namespace, extra: list[str]) -> int:
     if not ensure_venv(uv):
         print("Environment setup failed. Check the connection and disk space, then retry.")
         return 1
-    cmd = build_command(uv, args.api, args.port, extra)
+    env = {**read_env_file(os.path.join(ROOT, ".env")), **os.environ}
+    cmd = build_command(uv, args.api, args.port, extra, env)
     port = args.port or (API_PORT if args.api else UI_PORT)
     url = f"http://{HOST}:{port}" + ("/docs" if args.api else "")
     print(f"Starting ACE-Step {'API server' if args.api else 'Gradio UI'} at {url}")

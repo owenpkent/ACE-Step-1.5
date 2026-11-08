@@ -1,7 +1,7 @@
 """Tests for the run.py double-click launcher (argv building and flag parsing only)."""
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 
 import run
 
@@ -21,12 +21,35 @@ class BuildCommandTest(unittest.TestCase):
         self.assertEqual(cmd.count("--config_path"), 1)
         self.assertEqual(cmd[-2:], ["--config_path", "acestep-v15-base"])
 
+    def test_models_come_from_env_not_the_fallback(self):
+        env = {"ACESTEP_CONFIG_PATH": "acestep-v15-xl-sft",
+               "ACESTEP_LM_MODEL_PATH": "acestep-5Hz-lm-4B"}
+        cmd = run.build_command("uv", False, None, [], env)
+        self.assertEqual(cmd[cmd.index("--config_path") + 1], "acestep-v15-xl-sft")
+        self.assertEqual(cmd[cmd.index("--lm_model_path") + 1], "acestep-5Hz-lm-4B")
+
+    def test_empty_env_value_uses_fallback(self):
+        cmd = run.build_command("uv", False, None, [], {"ACESTEP_CONFIG_PATH": ""})
+        self.assertEqual(cmd[cmd.index("--config_path") + 1], "acestep-v15-turbo")
+
     def test_api_mode_uses_api_entry_point_and_port(self):
         cmd = run.build_command("uv", api=True, port=None, extra=[])
         self.assertEqual(cmd[3:], ["acestep-api", "--host", "127.0.0.1", "--port", "8001"])
 
     def test_custom_port(self):
         self.assertIn("7861", run.build_command("uv", False, 7861, []))
+
+
+class ReadEnvFileTest(unittest.TestCase):
+    """read_env_file handles comments, quotes and a missing file."""
+
+    def test_parses_values_and_skips_comments(self):
+        text = "# ACESTEP_CONFIG_PATH=nope\nACESTEP_CONFIG_PATH=\"xl\"  # mine\nBARE\n"
+        with patch("builtins.open", mock_open(read_data=text)):
+            self.assertEqual(run.read_env_file(".env"), {"ACESTEP_CONFIG_PATH": "xl"})
+
+    def test_missing_file_is_empty(self):
+        self.assertEqual(run.read_env_file("no/such/.env"), {})
 
 
 class ParseArgsTest(unittest.TestCase):
