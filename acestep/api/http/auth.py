@@ -62,11 +62,12 @@ def set_api_key(key: Optional[str]) -> None:
     """Set the process-level API key used by auth verification helpers.
 
     Args:
-        key: API key string, or ``None`` to disable auth enforcement.
+        key: API key string. ``None`` or an empty string disables auth
+            enforcement (an empty key would otherwise match an empty token).
     """
 
     global _api_key
-    _api_key = key
+    _api_key = key or None
 
 
 def verify_token_from_request(

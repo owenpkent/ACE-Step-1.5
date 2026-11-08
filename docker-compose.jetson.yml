@@ -51,6 +51,9 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - ACESTEP_MODE=${ACESTEP_MODE:-gradio}
+      # API key from the shell or this project's .env; empty disables auth.
+      # Required before PUBLISH_HOST=0.0.0.0 in API mode.
+      - ACESTEP_API_KEY=${ACESTEP_API_KEY:-}
       # vllm with 4B LM = best quality (README recommendation for ≥24GB).
       # CUDA graph capture is auto-disabled on Jetson (enforce_eager).
       - ACESTEP_LLM_BACKEND=${ACESTEP_LLM_BACKEND:-vllm}
@@ -80,10 +83,12 @@ services:
       - TOKENIZERS_PARALLELISM=false
 
     # ---- Ports ----
-    # Gradio UI on 7860, REST API on 8001
+    # Gradio UI on 7860, REST API on 8001, published on the host's loopback
+    # only. To reach them from other machines, set PUBLISH_HOST=0.0.0.0
+    # (and set ACESTEP_API_KEY).
     ports:
-      - "${GRADIO_PORT:-7860}:7860"
-      - "${API_PORT:-8001}:8001"
+      - "${PUBLISH_HOST:-127.0.0.1}:${GRADIO_PORT:-7860}:7860"
+      - "${PUBLISH_HOST:-127.0.0.1}:${API_PORT:-8001}:8001"
 
     # ---- Persistent volumes ----
     volumes:
